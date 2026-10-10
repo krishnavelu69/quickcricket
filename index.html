@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#075c3b" />
+  <meta name="description" content="QuickCricket — simple cricket scoring that saves on your device." />
+  <title>QuickCricket | Cricket Scorer</title>
+  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand-mark" aria-hidden="true">🏏</div>
+    <div><h1>QuickCricket</h1><p>Every ball counts.</p></div>
+    <span class="offline-pill" id="connectionStatus">On this device</span>
+  </header>
+
+  <main class="shell">
+    <section class="panel" id="setupPanel">
+      <div class="section-heading"><div><p class="eyebrow">NEW MATCH</p><h2>Set up your match</h2></div></div>
+      <form id="setupForm">
+        <label>Batting team<input id="teamA" maxlength="40" value="Team A" required /></label>
+        <label>Bowling team<input id="teamB" maxlength="40" value="Team B" required /></label>
+        <div class="form-row">
+          <label>Overs per innings<input id="oversLimit" type="number" min="1" max="50" value="20" required /></label>
+          <label>Players per side<input id="playersLimit" type="number" min="2" max="15" value="11" required /></label>
+        </div>
+        <button class="button primary full" type="submit">Start match <span aria-hidden="true">→</span></button>
+      </form>
+      <div class="resume-row" id="resumeRow" hidden><span>A saved match is available on this device.</span><button class="button quiet" id="resumeButton" type="button">Resume</button></div>
+      <p class="fine-print">Early prototype · Your match is saved in this browser on this device.</p>
+    </section>
+
+    <section id="matchPanel" hidden>
+      <div class="scoreboard">
+        <div class="scoreboard-top"><span class="live-dot"></span><span id="inningsLabel">1ST INNINGS</span><button class="text-button" id="editMatchButton" type="button">Match details</button></div>
+        <p class="batting-team" id="battingTeamName">Team A</p>
+        <div class="score-line"><span id="totalRuns">0</span><span class="slash">/</span><span id="totalWickets">0</span></div>
+        <p class="overs-line"><span id="oversDisplay">0.0 overs</span><span class="separator">·</span><span id="runRate">CRR 0.00</span></p>
+        <div class="scoreboard-bottom"><span id="targetDisplay">Target: —</span><span id="bowlingTeamDisplay">Bowling: Team B</span></div>
+      </div>
+
+      <div class="panel scoring-panel">
+        <div class="section-heading"><div><p class="eyebrow">SCORING</p><h2>Record this ball</h2></div><span class="hint">Tap the outcome</span></div>
+        <div class="run-grid" id="runButtons">
+          <button class="run-button" data-runs="0" type="button">0</button>
+          <button class="run-button" data-runs="1" type="button">1</button>
+          <button class="run-button" data-runs="2" type="button">2</button>
+          <button class="run-button" data-runs="3" type="button">3</button>
+          <button class="run-button boundary" data-runs="4" type="button">4 <small>FOUR</small></button>
+          <button class="run-button boundary" data-runs="6" type="button">6 <small>SIX</small></button>
+        </div>
+        <div class="extras-grid">
+          <button class="button secondary" id="wideButton" type="button">Wide +1</button>
+          <button class="button secondary" id="noBallButton" type="button">No-ball +1</button>
+          <button class="button secondary" id="byeButton" type="button">Bye</button>
+          <button class="button secondary" id="legByeButton" type="button">Leg-bye</button>
+          <button class="button danger" id="wicketButton" type="button">Wicket</button>
+          <button class="button quiet" id="undoButton" type="button">↶ Undo</button>
+        </div>
+        <p class="fine-print">Prototype note: advanced wicket types, byes off no-balls, and batter-by-batter stats are not included yet. Use Undo to correct the latest entry.</p>
+      </div>
+
+      <div class="panel match-actions">
+        <div><p class="eyebrow">MATCH CONTROL</p><h2>Manage innings</h2></div>
+        <div class="action-row"><button class="button secondary" id="endInningsButton" type="button">End innings</button><button class="button quiet" id="newMatchButton" type="button">New match</button></div>
+      </div>
+
+      <div class="panel">
+        <div class="section-heading"><div><p class="eyebrow">RECENT EVENTS</p><h2>Ball-by-ball log</h2></div><span class="count-chip" id="eventCount">0 events</span></div>
+        <div class="event-list" id="eventList"><p class="empty-state">No balls recorded yet. Tap a score above to begin.</p></div>
+      </div>
+      <div class="result-banner" id="resultBanner" hidden></div>
+    </section>
+    <footer><span>QuickCricket prototype</span><span>Built for the love of the game</span></footer>
+  </main>
+  <dialog id="detailsDialog" class="dialog-card">
+    <form method="dialog"><button class="dialog-close" aria-label="Close" value="close">×</button></form>
+    <p class="eyebrow">MATCH DETAILS</p><h2>Current match</h2>
+    <p id="detailsText"></p><p class="fine-print">Team names and overs can be changed by starting a new match.</p>
+    <button class="button primary full" id="closeDetails" type="button">Done</button>
+  </dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
