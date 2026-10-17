@@ -7,7 +7,7 @@
   <meta name="description" content="QuickCricket — one platform for live sports, equipment, pre-owned gear and venue bookings." />
   <title>QuickCricket | Sports Platform</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=13" />
+  <link rel="stylesheet" href="style.css?v=14" />
 </head>
 <body>
   <header class="topbar">
@@ -18,7 +18,7 @@
 
   <main class="shell">
 
-    <section class="panel home-hero" id="homePanel">
+    <section class="panel home-hero" id="homePanel"><button class="button primary" data-open-section="live">Sign in / My account</button>
       <p class="eyebrow">WELCOME TO YOUR SPORTS WORLD</p>
       <h2 class="home-title">Your game. Your gear. Your ground.</h2>
       <p class="home-copy">Follow live matches, discover sports equipment, trade pre-owned gear and find places to play.</p>
@@ -36,18 +36,18 @@
       <div class="live-nav"><button class="button quiet" type="button" data-go-home>← Home</button><span class="live-nav-title">Live Sports · Cricket</span></div>
     <section class="panel cloud-panel" id="cloudPanel">
       <div class="section-heading">
-        <div><p class="eyebrow">CLOUD BETA</p><h2>Share matches online</h2></div>
-        <span class="count-chip" id="cloudState">Not connected</span>
+        <div><p class="eyebrow">CLOUD BETA</p><h2>Your QuickCricket account</h2></div>
+        <span class="count-chip" id="cloudState">Connecting…</span>
       </div>
-      <details id="cloudSettings">
+      <details id="cloudSettings" hidden>
         <summary>Set up Supabase connection</summary>
         <p class="fine-print">Use your project's Project URL and publishable key. Never enter a database password or secret/service_role key here.</p>
         <label>Supabase Project URL<input id="supabaseUrl" type="url" placeholder="https://your-project.supabase.co" autocomplete="url"></label>
         <label>Supabase publishable key<input id="supabaseKey" type="password" placeholder="sb_publishable_..." autocomplete="off"></label>
         <button class="button secondary full" id="connectCloudButton" type="button">Connect to Supabase</button>
       </details>
-      <div id="cloudAuthArea" hidden>
-        <p class="fine-print" id="authMessage">Sign in to create and manage your own matches. Spectators can open a public match link without signing in.</p>
+      <button id="retryCloudButton" class="button quiet" type="button">Retry connection</button><div id="cloudAuthArea" hidden>
+        <p class="fine-print" id="authMessage">Sign in or create an account to request products, manage your business and save matches.</p>
         <label>Email<input id="authEmail" type="email" autocomplete="email" placeholder="you@example.com"></label>
         <label>Password<input id="authPassword" type="password" autocomplete="current-password" placeholder="At least 8 characters"></label>
         <div class="action-row">
@@ -130,7 +130,7 @@
       <div class="result-banner" id="resultBanner" hidden></div>
     </section>
     </div>
-    <footer><span>QuickCricket v13 · Order requests</span><span>Built for the love of the game</span></footer>
+    <footer><span>QuickCricket v14 · Mobile sign-in</span><span>Built for the love of the game</span></footer>
   </main>
   <dialog id="detailsDialog" class="dialog-card">
     <form method="dialog"><button class="dialog-close" aria-label="Close" value="close">×</button></form>
@@ -140,13 +140,13 @@
   </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=13"></script>
-  <script src="navigation.js?v=13"></script>
-  <script src="business-store.js?v=13"></script>
-  <script src="business.js?v=13"></script>
-  <script src="merchant-cloud.js?v=13"></script>
-<script src="product-model.js?v=13"></script>
-<script src="product-cloud.js?v=13"></script>
-<script src="order-model.js?v=13"></script><script src="orders.js?v=13"></script><script src="catalog.js?v=13"></script>
+  <script src="app.js?v=14"></script>
+  <script src="navigation.js?v=14"></script>
+  <script src="business-store.js?v=14"></script>
+  <script src="business.js?v=14"></script>
+  <script src="merchant-cloud.js?v=14"></script>
+<script src="product-model.js?v=14"></script>
+<script src="product-cloud.js?v=14"></script>
+<script src="order-model.js?v=14"></script><script src="orders.js?v=14"></script><script src="catalog.js?v=14"></script>
 </body>
 </html>

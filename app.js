@@ -25,21 +25,18 @@
     const node = $('cloudState');
     if (node) node.textContent = message;
   }
-  function readCloudConfig() {
-    try { return JSON.parse(localStorage.getItem(CLOUD_CONFIG_KEY) || 'null'); }
-    catch { return null; }
-  }
+  // Public application configuration. Authorization is enforced by Supabase RLS.
+  const PUBLIC_CLOUD = Object.freeze({
+    url: 'https://uarnciofwvipnafktvzw.supabase.co',
+    key: 'sb_publishable_ICqoG0BAOhk-oG-NhXKS4g_igxQblw5',
+    siteUrl: 'https://krishnavelu69.github.io/quickcricket/'
+  });
   function initCloudConfig() {
-    const config = readCloudConfig();
-    if (config) {
-      $('supabaseUrl').value = config.url || '';
-      $('supabaseKey').value = config.key || '';
-      $('cloudSettings').open = false;
-      connectCloud();
-    } else {
-      $('cloudSettings').open = true;
-      cloudStatus('Not connected');
-    }
+    $('supabaseUrl').value = PUBLIC_CLOUD.url;
+    $('supabaseKey').value = PUBLIC_CLOUD.key;
+    $('cloudSettings').hidden = true;
+    cloudStatus('Connecting…');
+    connectCloud();
   }
   function getSupabaseLibrary() {
     return window.supabase && typeof window.supabase.createClient === 'function'
@@ -62,7 +59,7 @@
       supabaseClient = library.createClient(url, key, {
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
       });
-      localStorage.setItem(CLOUD_CONFIG_KEY, JSON.stringify({ url, key }));
+      // The shared configuration works even on a fresh browser; no setup storage needed.
       const { data, error } = await supabaseClient.auth.getSession();
       if (error) throw error;
       signedInUser = data.session?.user || null;
@@ -74,7 +71,7 @@
       $('signInButton').hidden = !!signedInUser;
       $('authMessage').textContent = signedInUser
         ? `Signed in as ${signedInUser.email || 'your account'}.`
-        : 'Sign in to create and manage your own matches. Spectators can open a public match link without signing in.';
+        : 'Sign in or create an account to request products, manage your business and save matches.';
       $('cloudMatchArea').hidden = !signedInUser;
       if (signedInUser) refreshCloudControls();
       supabaseClient.auth.onAuthStateChange((_event, session) => {
@@ -86,7 +83,7 @@
         $('signInButton').hidden = !!signedInUser;
         $('authMessage').textContent = signedInUser
           ? `Signed in as ${signedInUser.email || 'your account'}.`
-          : 'Sign in to create and manage your own matches. Spectators can open a public match link without signing in.';
+          : 'Sign in or create an account to request products, manage your business and save matches.';
         $('cloudMatchArea').hidden = !signedInUser;
         refreshCloudControls();
       });
@@ -112,7 +109,7 @@
     const email = $('authEmail').value.trim();
     const password = $('authPassword').value;
     if (!email || password.length < 8) return showToast('Enter an email and a password with at least 8 characters.');
-    const { error } = await supabaseClient.auth.signUp({ email, password });
+    const { error } = await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: PUBLIC_CLOUD.siteUrl } });
     if (error) return showToast(`Sign-up failed: ${error.message}`);
     showToast('Sign-up submitted. Check your email if confirmation is required, then sign in.');
   }
@@ -524,6 +521,7 @@
 
   // Cloud beta controls. These are optional; local scoring does not depend on them.
   $('connectCloudButton').addEventListener('click', connectCloud);
+  $('retryCloudButton').addEventListener('click', () => location.reload());
   $('signUpButton').addEventListener('click', signUp);
   $('signInButton').addEventListener('click', signIn);
   $('signOutButton').addEventListener('click', signOut);
@@ -550,7 +548,7 @@
     $('matchPanel').hidden = false;
     render();
   }
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js').catch(() => {});
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {});
 
 
 })();

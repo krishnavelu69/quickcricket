@@ -1,3 +1,23 @@
+# QuickCricket v14 — Mobile sign-in
+
+Upload the CONTENTS of this folder to the root of your existing GitHub quickcricket repository (where index.html is), then commit the changes. Do not upload the ZIP or nest the outer folder. Wait for GitHub Pages deployment to finish.
+
+No new SQL migration is needed for v14. Existing order requests still need migration 004 if it has not already succeeded; never rerun a successful migration.
+
+The supplied project URL and publishable key are built into app.js. New browsers connect automatically. Customers no longer configure Supabase. A Home account button opens the account controls under Live Sports. No secret or service-role key is included. Existing database RLS policies remain essential and unchanged.
+
+In Supabase Authentication → URL Configuration, keep Site URL and an allowed Redirect URL set to:
+https://krishnavelu69.github.io/quickcricket/
+
+New signups explicitly request this public confirmation destination. Existing emails are not rewritten. Use a fresh confirmation email. Sign in with email/password after confirmation if the email opened in a different browser.
+
+Phone check: open the public website and confirm v14 · Mobile sign-in. Open Sign in / My account: email/password and Create account should appear automatically after connection. Test account creation, email confirmation and subsequent sign-in. If connection fails, check internet and tap Retry connection. No clearing of local matches is needed. Old cached builds may need all app tabs closed and reopened; a private tab can verify the deployed version separately.
+
+This package has local checks, not a verified live mobile signup. Email delivery and Supabase redirect configuration must be tested in your project.
+
+---
+Previous release instructions (v13):
+
 # QuickCricket v13 — Order requests
 
 ## Install
