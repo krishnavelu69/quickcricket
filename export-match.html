@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuickCricket — Export Saved Data</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:760px;margin:40px auto;padding:0 18px;line-height:1.5;color:#17202a}
+button{padding:12px 18px;border:0;border-radius:8px;background:#176b45;color:white;font-size:16px;cursor:pointer}
+.note{background:#f2f5f7;padding:14px;border-radius:8px}
+#status{margin-top:14px;font-weight:bold}
+</style>
+</head>
+<body>
+<h1>QuickCricket — Export Saved Data</h1>
+<p>This helper reads saved QuickCricket data from this browser address only. It does not change or delete your match.</p>
+<div class="note"><strong>Important:</strong> Open this page at <code>http://localhost:8002/export-match.html</code> while your original QuickCricket server on port 8002 is running.</div>
+<p>It will export the saved match and any QuickCricket Supabase connection settings found in this browser origin into one JSON file.</p>
+<button id="export">Export saved data</button>
+<p id="status" role="status"></p>
+<script>
+document.getElementById('export').addEventListener('click', function () {
+  try {
+    const storage = {};
+    const keys = ['quickcricket.match.v1', 'quickcricket.supabase.config.v1'];
+    for (const key of keys) {
+      const value = localStorage.getItem(key);
+      if (value !== null) storage[key] = value;
+    }
+    if (!storage['quickcricket.match.v1']) {
+      document.getElementById('status').textContent =
+        'No saved match was found for this browser address. Do not continue yet; the original match may not have been saved in local browser storage.';
+      return;
+    }
+    const payload = {
+      app: 'QuickCricket',
+      exportVersion: 1,
+      exportedAt: new Date().toISOString(),
+      source: location.origin,
+      storage
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'quickcricket-saved-data.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    document.getElementById('status').textContent =
+      'Export started. Keep the downloaded JSON file private and use it only in your QuickCricket integration test.';
+  } catch (err) {
+    document.getElementById('status').textContent = 'Export failed: ' + err.message;
+  }
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QuickCricket — Import Saved Data</title>
+<style>
+body{font-family:Arial,sans-serif;max-width:760px;margin:40px auto;padding:0 18px;line-height:1.5;color:#17202a}
+button{padding:12px 18px;border:0;border-radius:8px;background:#176b45;color:white;font-size:16px;cursor:pointer}
+input{display:block;margin:16px 0}
+.note{background:#fff6df;padding:14px;border-radius:8px}
+#status{margin-top:14px;font-weight:bold;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<h1>QuickCricket — Import Saved Data</h1>
+<p>Use this page only at <code>http://localhost:8007/import-match.html</code> while the integration-test server on port 8007 is running.</p>
+<div class="note"><strong>Safety:</strong> This will replace the saved match and Supabase settings only for port 8007 in this browser. It will not alter the original app on port 8002. Import only the JSON file exported from your own QuickCricket instance.</div>
+<label for="file">Choose quickcricket-saved-data.json</label>
+<input id="file" type="file" accept=".json,application/json">
+<button id="import" disabled>Import into integration test</button>
+<p id="status" role="status"></p>
+<script>
+let parsed = null;
+const fileInput = document.getElementById('file');
+const button = document.getElementById('import');
+const status = document.getElementById('status');
+fileInput.addEventListener('change', async function () {
+  parsed = null;
+  button.disabled = true;
+  status.textContent = '';
+  const file = fileInput.files && fileInput.files[0];
+  if (!file) return;
+  try {
+    const obj = JSON.parse(await file.text());
+    if (obj.app !== 'QuickCricket' || obj.exportVersion !== 1 ||
+        !obj.storage || typeof obj.storage['quickcricket.match.v1'] !== 'string') {
+      throw new Error('This does not look like a valid QuickCricket export, or it contains no saved match.');
+    }
+    parsed = obj;
+    button.disabled = false;
+    status.textContent = 'File checked. Click Import when ready.';
+  } catch (err) {
+    status.textContent = 'Could not read this export: ' + err.message;
+  }
+});
+button.addEventListener('click', function () {
+  if (!parsed) return;
+  try {
+    localStorage.setItem('quickcricket.match.v1', parsed.storage['quickcricket.match.v1']);
+    if (typeof parsed.storage['quickcricket.supabase.config.v1'] === 'string') {
+      localStorage.setItem('quickcricket.supabase.config.v1', parsed.storage['quickcricket.supabase.config.v1']);
+    }
+    status.textContent = 'Import complete for port 8007. Open the QuickCricket dashboard in another tab at http://localhost:8007, refresh it, and check the scorer. The original port 8002 data was not changed.';
+  } catch (err) {
+    status.textContent = 'Import failed: ' + err.message;
+  }
+});
+</script>
+</body>
+</html>

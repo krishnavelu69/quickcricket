@@ -1,7 +1,7 @@
 {
-  "name": "QuickCricket Scorer",
+  "name": "QuickCricket Sports Platform",
   "short_name": "QuickCricket",
-  "description": "Simple cricket scoring saved on your device.",
+  "description": "A multi-sport platform prototype for live scoring, sports equipment, pre-owned gear and venue discovery.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#f3f7f4",
