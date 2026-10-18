@@ -1,3 +1,16 @@
+# QuickCricket v17 — Navigation & sharing fixes
+
+No SQL changes. Upload this folder's contents to the existing GitHub repository root and commit. Wait for Pages deployment and confirm v17 · Navigation & sharing. Use this version on the scoring device too.
+
+Share links always point to https://krishnavelu69.github.io/quickcricket/ even when the scorer opens a local file or localhost. Existing matches need not be recreated; copy their link again from this version. The match must already be saved to cloud and made public.
+
+Navigation stores the chosen section in the URL and per-tab session storage. Refresh retains Live Sports, Sports Shop, profile, orders, business, used gear or venues. Home still explicitly returns home. Fresh spectator links open Live Sports. This preserves the screen, not unsaved form edits.
+
+Checks: five targeted tests passed covering all feature routes, file-mode fallback, unknown routes, spectator route priority and public share links from file/localhost. JavaScript syntax passed. Actual phone/browser testing remains necessary.
+
+---
+Previous release notes:
+
 # QuickCricket v16 — Player scoring: stage 1
 
 No new SQL migration. Upload the contents of this folder to the existing GitHub repository root and Commit changes. Wait for Pages deployment. Confirm v16 · Player scoring on the public site. Use this build on scorer and spectator devices; older builds do not support player statistics. Back up any important current match before starting a new one.

@@ -207,7 +207,7 @@
   }
   async function copySpectatorLink() {
     if (!cloudMatchId || !cloudIsPublic) return;
-    const url = new URL(window.location.href);
+    const url = new URL(PUBLIC_CLOUD.siteUrl);
     url.search = '';
     url.hash = '';
     url.searchParams.set('match', cloudMatchId);
