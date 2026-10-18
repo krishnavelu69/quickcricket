@@ -29,3 +29,6 @@
 .media-photo{display:block;width:100%;height:220px;object-fit:contain;border-radius:12px;background:#f1f6f3;margin:12px 0}.media-cover{display:block;width:100%;height:150px;object-fit:cover;border-radius:12px}.media-avatar{width:80px;height:80px;object-fit:cover;border-radius:50%;margin:12px 0}.check-label{display:flex;gap:10px;align-items:center}.check-label input[type=checkbox],#catalogInStock{width:22px;height:22px;min-height:22px;flex:none}.business-form input[type=file]{max-width:100%;font-size:14px}.panel{min-width:0}
 
 .scorecard-scroll{overflow-x:auto}.player-table{width:100%;border-collapse:collapse}.player-table th,.player-table td{padding:8px;text-align:left;border-bottom:1px solid #dce8e1}#setupForm textarea{width:100%;box-sizing:border-box}
+
+#wicketDialog { width: min(520px, calc(100vw - 32px)); max-height: 85dvh; overflow-y: auto; box-sizing: border-box; }
+#wicketDialog select, #wicketDialog input { max-width: 100%; }

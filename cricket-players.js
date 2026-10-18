@@ -11,9 +11,10 @@ function record(p,runs,opts,legalBalls){if(!ready(p))throw Error('Select the bat
  batter.runs+=batRuns;if(batRuns===4)batter.fours++;if(batRuns===6)batter.sixes++;
  if(kind!=='bat')p.extras[kind]+=kind==='noBall'?1:runs;
  if(legal)bowler.balls++;if(!['bye','legBye'].includes(kind))bowler.runs+=runs;
- if(opts.wicket){const slot=opts.dismissedEnd==='nonStriker'?'nonStriker':'striker';p.bat[p[slot]].out=opts.dismissal||'bowled';if(opts.dismissal!=='run out')bowler.wickets++;p[slot]=null;}
+ if(opts.wicket){const slot=opts.dismissedEnd==='nonStriker'?'nonStriker':'striker';p.bat[p[slot]].out=opts.dismissal||'bowled';p.bat[p[slot]].dismissalText=(opts.dismissal||'bowled')+(opts.fielder?' ('+opts.fielder+')':'')+(opts.dismissal!=='run out'?' b '+bowler.name:'');if(opts.dismissal!=='run out')bowler.wickets++;p[slot]=null;}
  const crossed=kind==='wide'||kind==='noBall'?runs-1:runs;
  if(crossed%2)[p.striker,p.nonStriker]=[p.nonStriker,p.striker];
+ if(opts.wicket&&opts.dismissal==='run out'&&['striker','nonStriker'].includes(opts.survivorEnd)){const survivor=p.striker===null?p.nonStriker:p.striker;p.striker=opts.survivorEnd==='striker'?survivor:null;p.nonStriker=opts.survivorEnd==='nonStriker'?survivor:null;}
  if(legal&&legalBalls%6===0){[p.striker,p.nonStriker]=[p.nonStriker,p.striker];p.previousBowler=p.bowler;p.bowler=null;}
 }
 function rate(runs,balls,multiplier){return balls?(runs*multiplier/balls).toFixed(2):'—';}

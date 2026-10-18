@@ -1,0 +1,11 @@
+QuickCricket v20 - Wicket scoring
+
+Mobile-friendly dismissal form replaces wicket prompts. Caught, stumped and run-out fielders can be recorded; scorecards show bowling credit. Run-outs support 0-3 completed bat runs/byes/leg-byes on legal deliveries, with explicit surviving batter end selection before automatic over-end swapping. Select the end according to the umpire. No wides/no-ball dismissals, pre-delivery run-outs, runners, or 4+ completed runs yet.
+
+Upload extracted folder contents to GitHub root. Confirm v20. No SQL changes. Script cache tags are now consistent.
+
+Practice check: on the first ball, record non-striker run-out with 1 completed bat run and select the surviving batter at the facing end. Total 1/1, striker 1 run, bowler 0 wickets. Undo should restore 0/0 and both batters.
+
+57 automated tests passed. Mobile browser interaction still needs device verification.
+
+Rules reference: MCC Law 38, https://www.lords.org/mcc/the-laws-of-cricket/run-out

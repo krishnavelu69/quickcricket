@@ -482,7 +482,7 @@
     state.inningsData.forEach((inning,i)=>{
       if(!inning.players)return;
       const q=inning.players,maidens=QCCricketPlayers.maidens(inning,i);
-      table(`${state.teams[i]} · ${inning.runs}/${inning.wickets} (${oversText(inning.legalBalls)} overs)`,['Batter','R','B','4','6','SR','Status'],q.bat.map((b,j)=>[playerLabel(i,b.name)+(j===q.striker?' *':''),b.runs,b.balls,b.fours,b.sixes,QCCricketPlayers.rate(b.runs,b.balls,100),b.out||((j===q.striker||j===q.nonStriker||b.balls)?'not out':'yet to bat')]));
+      table(`${state.teams[i]} · ${inning.runs}/${inning.wickets} (${oversText(inning.legalBalls)} overs)`,['Batter','R','B','4','6','SR','Status'],q.bat.map((b,j)=>[playerLabel(i,b.name)+(j===q.striker?' *':''),b.runs,b.balls,b.fours,b.sixes,QCCricketPlayers.rate(b.runs,b.balls,100),(b.dismissalText||b.out)||((j===q.striker||j===q.nonStriker||b.balls)?'not out':'yet to bat')]));
       const extras=document.createElement('p');extras.textContent=`Extras ${Object.values(q.extras).reduce((a,b)=>a+b,0)}: Wd ${q.extras.wide}, Nb ${q.extras.noBall}, B ${q.extras.bye}, Lb ${q.extras.legBye}`;area.append(extras);
       table(state.teams[1-i]+' bowling',['Bowler','O','M','R','W','Econ'],q.bowl.map((b,j)=>[playerLabel(1-i,b.name),oversText(b.balls),maidens[j],b.runs,b.wickets,QCCricketPlayers.rate(b.runs,b.balls,6)]));
       const wickets=inning.events.filter(e=>e.wicket);const fall=document.createElement('p');fall.textContent='Fall of wickets: '+(wickets.length?wickets.map(e=>`${e.total}/${e.wickets} (${oversText(e.balls)})`).join(' · '):'None');area.append(fall);
@@ -576,7 +576,36 @@
   });
   $('byeButton').addEventListener('click', () => { const value = prompt('How many byes? (1–6)', '1'); if (value === null) return; const n = Number(value); if (Number.isInteger(n) && n >= 1 && n <= 6) addEvent(`Bye ${n}`, n, {kind:'bye'}); else showToast('Enter a whole number from 1 to 6.'); });
   $('legByeButton').addEventListener('click', () => { const value = prompt('How many leg-byes? (1–6)', '1'); if (value === null) return; const n = Number(value); if (Number.isInteger(n) && n >= 1 && n <= 6) addEvent(`Leg-bye ${n}`, n, {kind:'legBye'}); else showToast('Enter a whole number from 1 to 6.'); });
-  $('wicketButton').addEventListener('click', () => { if(!state||state.finished)return;const choices=['bowled','caught','lbw','stumped','hit wicket','run out'];const answer=prompt('Wicket on a LEGAL ball with ZERO runs. Enter: 1 bowled, 2 caught, 3 LBW, 4 stumped, 5 hit wicket, 6 run out. Other situations are not supported yet.','1');if(answer===null)return;const dismissal=choices[Number(answer)-1];if(!dismissal){showToast('Choose 1–6.');return;}let dismissedEnd='striker';if(dismissal==='run out'){const end=prompt('Who was run out? Enter 1 for striker or 2 for non-striker.','1');if(end===null)return;if(!['1','2'].includes(end)){showToast('Choose 1 or 2.');return;}dismissedEnd=end==='2'?'nonStriker':'striker';}addEvent(dismissal,0,{wicket:true,dismissal,dismissedEnd}); });
+  function updateWicketFields(){
+    const type=$('dismissalType').value,runout=type==='run out';
+    $('runoutFields').hidden=!runout;$('fielderRow').hidden=!['caught','stumped','run out'].includes(type);
+    $('survivorEnd').required=runout;
+  }
+  $('dismissalType').addEventListener('change',updateWicketFields);
+  $('cancelWicket').addEventListener('click',()=>$('wicketDialog').close());
+  let wicketContext=null;
+  $('wicketButton').addEventListener('click',()=>{
+    if(!state||state.finished||new URLSearchParams(location.search).has('match'))return;
+    const p=inn().players;if(p&&!QCCricketPlayers.ready(p)){showToast('Choose batters and bowler first.');return;}
+    wicketContext={state,inning:inn(),count:inn().events.length};
+    $('wicketForm').reset();$('wicketError').textContent='';
+    const field=$('dismissalFielder');field.replaceChildren();
+    for(const name of ['',...(p?p.bowl.map(b=>b.name):[])]){const o=document.createElement('option');o.value=name;o.textContent=name||'Not recorded';field.append(o);}
+    const dismissed=$('dismissedBatter');dismissed.replaceChildren();
+    for(const slot of ['striker','nonStriker']){const o=document.createElement('option');o.value=slot;o.textContent=p?p.bat[p[slot]].name:slot;dismissed.append(o);}
+    updateWicketFields();$('wicketDialog').showModal();
+  });
+  $('wicketForm').addEventListener('submit',event=>{
+    event.preventDefault();
+    if(!state||state.finished||new URLSearchParams(location.search).has('match')||wicketContext?.state!==state||wicketContext.inning!==inn()||wicketContext.count!==inn().events.length){$('wicketDialog').close();showToast('Match changed. Open Wicket again.');return;}
+    const dismissal=$('dismissalType').value,runout=dismissal==='run out',runs=runout?Number($('wicketRuns').value):0;
+    if(!Number.isInteger(runs)||runs<0||runs>3){$('wicketError').textContent='Enter 0–3 completed runs.';return;}
+    if(runout&&!['striker','nonStriker'].includes($('survivorEnd').value)){$('wicketError').textContent='Choose the surviving batter’s end.';return;}
+    if(runout&&state.currentInnings===1&&inn().runs+runs>=state.target){$('wicketError').textContent='These runs reach the target before the run-out. Cancel and record the winning runs instead.';return;}
+    const fielder=['caught','stumped','run out'].includes(dismissal)?$('dismissalFielder').value:'';
+    addEvent(dismissal+(fielder?' ('+fielder+')':'')+(runs?' +'+runs:''),runs,{wicket:true,dismissal,fielder,dismissedEnd:runout?$('dismissedBatter').value:'striker',survivorEnd:runout?$('survivorEnd').value:null,kind:runout?$('wicketRunKind').value:'bat'});
+    $('wicketDialog').close();
+  });
   $('undoButton').addEventListener('click', undo); $('endInningsButton').addEventListener('click', () => { if (confirm('End this innings?')) endInnings(); });
   $('newMatchButton').addEventListener('click', () => { if (confirm('Start a new match? The current saved match on this device will be replaced.')) { localStorage.removeItem(STORAGE_KEY); state = null; $('matchPanel').hidden = true; $('setupPanel').hidden = false; $('resumeRow').hidden = true; } });
   $('resumeButton').addEventListener('click', () => { const saved = loadSaved(); if (!saved) { showToast('No valid saved match found.'); return; } state = saved; $('setupPanel').hidden = true; $('matchPanel').hidden = false; render(); });
