@@ -1,0 +1,9 @@
+QuickCricket v21 - Extras scoring
+
+Mobile extras form replaces wide/no-ball/bye/leg-bye prompts, with a total preview. No-balls can include bat runs, byes or leg byes. The penalty is added automatically. Combined extras update scorecards, bowling charges and strike. Undo restores them.
+
+Upload extracted folder contents to GitHub root. Confirm v21. No SQL changes.
+
+Practice check: No-ball, Byes, additional runs 2. Team increases by 3, batter by 0, bowler by 1; legal balls unchanged. Extras show Nb 1 and B 2. Undo reverses the delivery.
+
+69 automated tests passed. Mobile interaction still needs device verification. Free-hit restrictions and wickets on illegal deliveries are not yet supported.

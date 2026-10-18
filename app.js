@@ -558,24 +558,29 @@
     }catch(error){showToast(error.message);}
   });
   $('runButtons').addEventListener('click', event => { const button = event.target.closest('[data-runs]'); if (button) addEvent(`${button.dataset.runs} run${button.dataset.runs === '1' ? '' : 's'}`, Number(button.dataset.runs)); });
-  $('wideButton').addEventListener('click', () => {
-    const value = prompt('Additional runs from the wide (excluding the 1-run wide penalty)? Enter 0–6.', '0');
-    if (value === null) return;
-    const extra = Number(value);
-    if (Number.isInteger(extra) && extra >= 0 && extra <= 6) {
-      addEvent(extra ? `Wide +${1 + extra} total` : 'Wide +1', 1 + extra, { legal: false, kind: 'wide' });
-    } else showToast('Enter a whole number from 0 to 6.');
+  let extrasContext=null;
+  function previewExtra(){
+    try{if($('extrasRuns').value==='')throw Error('Enter the number of runs.');const d=QCCricketPlayers.extraDelivery(extrasContext.kind,Number($('extrasRuns').value),$('noBallKind').value);$('extrasPreview').textContent=`Add ${d.runs} to team total · ${d.label} · ${d.opts.legal?'counts as a legal ball':'does not count as a legal ball'}`;$('extrasError').textContent='';}
+    catch(error){$('extrasPreview').textContent='';$('extrasError').textContent=error.message;}
+  }
+  function openExtra(kind){
+    if(!state||state.finished||new URLSearchParams(location.search).has('match'))return;
+    if(inn().players&&!QCCricketPlayers.ready(inn().players)){showToast('Choose batters and bowler first.');return;}
+    extrasContext={kind,state,inning:inn(),count:inn().events.length};$('extrasForm').reset();
+    const penalty=kind==='wide'||kind==='noBall';
+    $('extrasHeading').textContent={wide:'Record wide',noBall:'Record no-ball',bye:'Record byes',legBye:'Record leg byes'}[kind];
+    $('extrasHelp').textContent=penalty?'The app adds the 1-run penalty automatically. Enter only additional runs below.':'Enter the runs signalled by the umpire.';
+    $('noBallKindRow').hidden=kind!=='noBall';$('extrasRunsLabel').textContent=penalty?'Additional runs (excluding penalty)':'Runs';
+    $('extrasRuns').min=penalty?'0':'1';$('extrasRuns').value=penalty?'0':'1';previewExtra();$('extrasDialog').showModal();
+  }
+  for(const [id,kind] of [['wideButton','wide'],['noBallButton','noBall'],['byeButton','bye'],['legByeButton','legBye']])$(id).addEventListener('click',()=>openExtra(kind));
+  $('extrasRuns').addEventListener('input',previewExtra);$('noBallKind').addEventListener('change',previewExtra);
+  $('cancelExtra').addEventListener('click',()=>$('extrasDialog').close());
+  $('extrasForm').addEventListener('submit',event=>{
+    event.preventDefault();
+    if(!state||state.finished||new URLSearchParams(location.search).has('match')||extrasContext?.state!==state||extrasContext.inning!==inn()||extrasContext.count!==inn().events.length){$('extrasDialog').close();showToast('Match changed. Open extras again.');return;}
+    try{if($('extrasRuns').value==='')throw Error('Enter the number of runs.');const d=QCCricketPlayers.extraDelivery(extrasContext.kind,Number($('extrasRuns').value),$('noBallKind').value);addEvent(d.label,d.runs,d.opts);$('extrasDialog').close();}catch(error){$('extrasError').textContent=error.message;}
   });
-  $('noBallButton').addEventListener('click', () => {
-    const value = prompt('Additional runs from the bat (excluding the 1-run no-ball penalty)? Enter 0–6.', '0');
-    if (value === null) return;
-    const batRuns = Number(value);
-    if (Number.isInteger(batRuns) && batRuns >= 0 && batRuns <= 6) {
-      addEvent(batRuns ? `No-ball +1 penalty, ${batRuns} bat run${batRuns === 1 ? '' : 's'}` : 'No-ball +1', 1 + batRuns, { legal: false, kind: 'noBall' });
-    } else showToast('Enter a whole number from 0 to 6.');
-  });
-  $('byeButton').addEventListener('click', () => { const value = prompt('How many byes? (1–6)', '1'); if (value === null) return; const n = Number(value); if (Number.isInteger(n) && n >= 1 && n <= 6) addEvent(`Bye ${n}`, n, {kind:'bye'}); else showToast('Enter a whole number from 1 to 6.'); });
-  $('legByeButton').addEventListener('click', () => { const value = prompt('How many leg-byes? (1–6)', '1'); if (value === null) return; const n = Number(value); if (Number.isInteger(n) && n >= 1 && n <= 6) addEvent(`Leg-bye ${n}`, n, {kind:'legBye'}); else showToast('Enter a whole number from 1 to 6.'); });
   function updateWicketFields(){
     const type=$('dismissalType').value,runout=type==='run out';
     $('runoutFields').hidden=!runout;$('fielderRow').hidden=!['caught','stumped','run out'].includes(type);

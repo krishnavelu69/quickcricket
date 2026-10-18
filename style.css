@@ -30,5 +30,5 @@
 
 .scorecard-scroll{overflow-x:auto}.player-table{width:100%;border-collapse:collapse}.player-table th,.player-table td{padding:8px;text-align:left;border-bottom:1px solid #dce8e1}#setupForm textarea{width:100%;box-sizing:border-box}
 
-#wicketDialog { width: min(520px, calc(100vw - 32px)); max-height: 85dvh; overflow-y: auto; box-sizing: border-box; }
+#wicketDialog, #extrasDialog { width: min(520px, calc(100vw - 32px)); max-height: 85dvh; overflow-y: auto; box-sizing: border-box; }
 #wicketDialog select, #wicketDialog input { max-width: 100%; }

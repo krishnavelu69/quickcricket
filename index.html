@@ -7,7 +7,7 @@
   <meta name="description" content="QuickCricket — one platform for live sports, equipment, pre-owned gear and venue bookings." />
   <title>QuickCricket | Sports Platform</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=20" />
+  <link rel="stylesheet" href="style.css?v=21" />
 </head>
 <body>
   <header class="topbar">
@@ -135,8 +135,14 @@
       <div class="result-banner" id="resultBanner" hidden></div>
     </section>
     </div>
-    <footer><span>QuickCricket v20 · Wicket scoring</span><span>Built for the love of the game</span></footer>
+    <footer><span>QuickCricket v21 · Extras scoring</span><span>Built for the love of the game</span></footer>
   </main>
+  <dialog id="extrasDialog" class="dialog-card" aria-labelledby="extrasHeading"><form id="extrasForm" class="business-form">
+<h2 id="extrasHeading">Record extra</h2><p id="extrasHelp"></p>
+<label id="noBallKindRow" hidden>Additional runs credited as<select id="noBallKind"><option value="bat">Bat runs</option><option value="bye">Byes</option><option value="legBye">Leg byes</option></select></label>
+<label><span id="extrasRunsLabel">Runs</span><input id="extrasRuns" type="number" min="0" max="6" step="1" value="0" required inputmode="numeric"></label>
+<p id="extrasPreview" role="status"></p><p class="fine-print">Follow the umpire's signal. Free-hit restrictions and wickets on wides/no-balls are not supported yet.</p>
+<p id="extrasError" role="alert"></p><button class="button primary" type="submit">Confirm extra</button><button id="cancelExtra" type="button" class="button quiet">Cancel</button></form></dialog>
   <dialog id="wicketDialog" class="dialog-card" aria-labelledby="wicketHeading"><form id="wicketForm" class="business-form">
 <h2 id="wicketHeading">Record wicket</h2><p>Legal deliveries only in this release.</p>
 <label>Dismissal<select id="dismissalType"><option>bowled</option><option>caught</option><option>lbw</option><option>stumped</option><option>hit wicket</option><option>run out</option></select></label>
@@ -154,13 +160,13 @@
   </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="cricket-players.js?v=20"></script><script src="app.js?v=20"></script>
-  <script src="navigation.js?v=20"></script>
-  <script src="business-store.js?v=20"></script>
-  <script src="business.js?v=20"></script>
-  <script src="media.js?v=20"></script><script src="profiles.js?v=20"></script><script src="merchant-cloud.js?v=20"></script>
-<script src="product-model.js?v=20"></script>
-<script src="product-cloud.js?v=20"></script>
-<script src="order-model.js?v=20"></script><script src="orders.js?v=20"></script><script src="catalog.js?v=20"></script>
+  <script src="cricket-players.js?v=21"></script><script src="app.js?v=21"></script>
+  <script src="navigation.js?v=21"></script>
+  <script src="business-store.js?v=21"></script>
+  <script src="business.js?v=21"></script>
+  <script src="media.js?v=21"></script><script src="profiles.js?v=21"></script><script src="merchant-cloud.js?v=21"></script>
+<script src="product-model.js?v=21"></script>
+<script src="product-cloud.js?v=21"></script>
+<script src="order-model.js?v=21"></script><script src="orders.js?v=21"></script><script src="catalog.js?v=21"></script>
 </body>
 </html>

@@ -6,16 +6,26 @@ function select(p,s,n,b){for(const i of [s,n])if(!Number.isInteger(i)||!p.bat[i]
 function ready(p){return p.striker!==null&&p.nonStriker!==null&&p.bowler!==null;}
 function record(p,runs,opts,legalBalls){if(!ready(p))throw Error('Select the batters and bowler before scoring.');const batter=p.bat[p.striker],bowler=p.bowl[p.bowler],kind=opts.kind||'bat',legal=opts.legal!==false;
  if(!['bat','wide','noBall','bye','legBye'].includes(kind))throw Error('Invalid delivery type.');
- const batRuns=kind==='bat'?runs:kind==='noBall'?runs-1:0;
+ const noBallExtra=kind==='noBall'&&['bye','legBye'].includes(opts.extraKind);
+ const batRuns=kind==='bat'?runs:kind==='noBall'&&!noBallExtra?runs-1:0;
  if(kind!=='wide')batter.balls++;
  batter.runs+=batRuns;if(batRuns===4)batter.fours++;if(batRuns===6)batter.sixes++;
  if(kind!=='bat')p.extras[kind]+=kind==='noBall'?1:runs;
- if(legal)bowler.balls++;if(!['bye','legBye'].includes(kind))bowler.runs+=runs;
+ if(noBallExtra)p.extras[opts.extraKind]+=runs-1;
+ if(legal)bowler.balls++;if(!['bye','legBye'].includes(kind))bowler.runs+=noBallExtra?1:runs;
  if(opts.wicket){const slot=opts.dismissedEnd==='nonStriker'?'nonStriker':'striker';p.bat[p[slot]].out=opts.dismissal||'bowled';p.bat[p[slot]].dismissalText=(opts.dismissal||'bowled')+(opts.fielder?' ('+opts.fielder+')':'')+(opts.dismissal!=='run out'?' b '+bowler.name:'');if(opts.dismissal!=='run out')bowler.wickets++;p[slot]=null;}
  const crossed=kind==='wide'||kind==='noBall'?runs-1:runs;
  if(crossed%2)[p.striker,p.nonStriker]=[p.nonStriker,p.striker];
  if(opts.wicket&&opts.dismissal==='run out'&&['striker','nonStriker'].includes(opts.survivorEnd)){const survivor=p.striker===null?p.nonStriker:p.striker;p.striker=opts.survivorEnd==='striker'?survivor:null;p.nonStriker=opts.survivorEnd==='nonStriker'?survivor:null;}
  if(legal&&legalBalls%6===0){[p.striker,p.nonStriker]=[p.nonStriker,p.striker];p.previousBowler=p.bowler;p.bowler=null;}
+}
+function extraDelivery(kind,additional,extraKind='bat'){
+ if(!['wide','noBall','bye','legBye'].includes(kind))throw Error('Choose an extra type.');
+ const penalty=kind==='wide'||kind==='noBall';
+ if(typeof additional!=='number'||!Number.isInteger(additional)||additional<(penalty?0:1)||additional>6)throw Error(penalty?'Enter 0–6 additional runs.':'Enter 1–6 runs.');
+ if(kind==='noBall'&&!['bat','bye','legBye'].includes(extraKind))throw Error('Choose bat runs, byes or leg byes.');
+ const runs=additional+(penalty?1:0),names={bat:'bat runs',bye:'byes',legBye:'leg byes'};
+ return {runs,opts:{kind,legal:!penalty,...(kind==='noBall'?{extraKind}:{})},label:kind==='noBall'?`No-ball: 1 penalty + ${additional} ${names[extraKind]}`:kind==='wide'?`Wide: ${runs} total`:`${names[kind]}: ${runs}`};
 }
 function rate(runs,balls,multiplier){return balls?(runs*multiplier/balls).toFixed(2):'—';}
 // Derive completed maidens from saved deliveries, so Undo and older player matches work.
@@ -33,5 +43,5 @@ function maidens(inning,index){
  for(const group of groups.values())if(group.start===0&&group.legal===6&&group.runs===0)counts[group.bowler]++;
  return counts;
 }
-const api={roster,create,select,ready,record,rate,maidens};if(typeof module==='object')module.exports=api;else root.QCCricketPlayers=api;
+const api={roster,create,select,ready,record,rate,maidens,extraDelivery};if(typeof module==='object')module.exports=api;else root.QCCricketPlayers=api;
 })(globalThis);
