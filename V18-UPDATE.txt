@@ -1,0 +1,9 @@
+QuickCricket v18 - Toss & team roles
+
+New matches: enter both playing sides, select each captain and wicketkeeper, then select the toss winner and decision. Batting order follows the toss automatically. Roles appear in scorecards. Existing matches remain usable without toss metadata.
+
+Upload the contents of this folder to the quickcricket GitHub repository root. No new Supabase SQL is needed. Wait for deployment, reopen the app and check the v18 footer.
+
+Check with a new practice match: Team B wins and bowls; Team A must bat first. Open scorecards to check (c) and (wk). Refresh and confirm the match and toss remain.
+
+Validation: 40 automated tests passed. Real mobile deployment and cloud sync of the new metadata still require device verification. Advanced dismissal and extras rules remain future work.

@@ -76,19 +76,24 @@
     <section class="panel" id="setupPanel">
       <div class="section-heading"><div><p class="eyebrow">NEW MATCH</p><h2>Set up your match</h2></div></div>
       <form id="setupForm">
-        <label>Batting team<input id="teamA" maxlength="40" value="Team A" required /></label>
-        <label>Bowling team<input id="teamB" maxlength="40" value="Team B" required /></label>
+        <label>Team A<input id="teamA" maxlength="40" value="Team A" required /></label>
+        <label>Team B<input id="teamB" maxlength="40" value="Team B" required /></label>
         <div class="form-row">
           <label>Overs per innings<input id="oversLimit" type="number" min="1" max="50" value="20" required /></label>
           <label>Players per side<input id="playersLimit" type="number" min="2" max="15" value="11" required /></label>
         </div>
-        <label>Batting team playing XI / squad (one name per line)<textarea id="teamAPlayers" rows="6" required placeholder="Enter exactly the number of players selected above"></textarea></label><label>Bowling team playing XI / squad (one name per line)<textarea id="teamBPlayers" rows="6" required></textarea></label><p class="fine-print">Enter your selected playing side, not the full club squad. First team bats first. Team membership, captain/wicketkeeper roles and toss controls follow in the next scorer stages.</p><button class="button primary full" type="submit">Start match <span aria-hidden="true">→</span></button>
+        <label>Team A playing side (one name per line)<textarea id="teamAPlayers" rows="6" required placeholder="Enter exactly the number of players selected above"></textarea></label><label>Team B playing side (one name per line)<textarea id="teamBPlayers" rows="6" required></textarea></label><p class="fine-print">Enter the players taking part. Choose a captain and wicketkeeper for each side; one player may hold both roles.</p>
+        <div class="form-row"><label>Team A captain<select id="captainA" required></select></label><label>Team A wicketkeeper<select id="keeperA" required></select></label></div>
+        <div class="form-row"><label>Team B captain<select id="captainB" required></select></label><label>Team B wicketkeeper<select id="keeperB" required></select></label></div>
+        <div class="form-row"><label>Toss won by<select id="tossWinner" required><option value="">Choose team</option><option value="0">Team A</option><option value="1">Team B</option></select></label><label>Elected to<select id="tossDecision" required><option value="">Choose decision</option><option value="bat">Bat</option><option value="bowl">Bowl</option></select></label></div>
+        <button class="button primary full" type="submit">Start match <span aria-hidden="true">→</span></button>
       </form>
       <div class="resume-row" id="resumeRow" hidden><span>A saved match is available on this device.</span><button class="button quiet" id="resumeButton" type="button">Resume</button></div>
       <p class="fine-print">Early prototype · Your match is saved in this browser on this device. Cloud sharing is optional.</p>
     </section>
 
     <section id="matchPanel" hidden>
+      <p id="tossSummary" class="fine-print" hidden></p>
       <div class="scoreboard">
         <div class="scoreboard-top"><span class="live-dot"></span><span id="inningsLabel">1ST INNINGS</span><button class="text-button" id="editMatchButton" type="button">Match details</button></div>
         <p class="batting-team" id="battingTeamName">Team A</p>
@@ -130,7 +135,7 @@
       <div class="result-banner" id="resultBanner" hidden></div>
     </section>
     </div>
-    <footer><span>QuickCricket v17 · Navigation & sharing</span><span>Built for the love of the game</span></footer>
+    <footer><span>QuickCricket v18 · Toss & team roles</span><span>Built for the love of the game</span></footer>
   </main>
   <dialog id="detailsDialog" class="dialog-card">
     <form method="dialog"><button class="dialog-close" aria-label="Close" value="close">×</button></form>
