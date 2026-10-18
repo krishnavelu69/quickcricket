@@ -1,3 +1,30 @@
+# QuickCricket v16 — Player scoring: stage 1
+
+No new SQL migration. Upload the contents of this folder to the existing GitHub repository root and Commit changes. Wait for Pages deployment. Confirm v16 · Player scoring on the public site. Use this build on scorer and spectator devices; older builds do not support player statistics. Back up any important current match before starting a new one.
+
+## Quick test
+Live Sports → New match. Choose 2 overs and 3 players per side. Enter three distinct player names for each side, one per line. First team bats first. Start match, choose striker, non-striker and bowler, and Confirm players.
+- Score 1: striker should swap and the original striker gets 1 run / 1 ball.
+- Score Wide with 0 additional runs: team and bowler gain 1, but ball count and strike stay unchanged.
+- Score 4: current striker gets a boundary and 4 runs. Undo: runs, strike and player statistics restore.
+- Complete six legal balls: strike changes and a different bowler must be chosen.
+- Refresh: names, score and individual figures must remain.
+- Open Full batting and bowling scorecards to inspect both innings.
+- Save match to cloud, publish and check the spectator link on a phone. Player figures travel in the existing match data; no schema migration is needed. Confirm they update live.
+
+Existing saved matches remain total-only. Start a NEW match to record named players; we cannot reconstruct individual attribution for older deliveries.
+
+## Included and limitations
+Named playing sides (2–15 players), opening/incoming batter selection, over-boundary bowler selection, automatic strike rotation, batting runs/balls/boundaries, bowling overs/runs/wickets and extras breakdown. Wickets support bowled, caught, LBW, stumped, hit wicket and striker/non-striker run-outs only on a LEGAL ZERO-RUN delivery. No-ball bat runs are supported. No-ball byes, dismissals on illegal balls, wickets with completed runs, free-hit restrictions, penalty runs, retirements, substitutions, captain/wicketkeeper roles, toss and reusable team profiles are future scorer stages. This is a pilot, not complete rules support. Use normal over-end bowler changes; injury replacements mid-over are not implemented. Undo restores the last scoring event; manual innings endings do not have their own separate undo event yet.
+
+The Retry connection button now hides after successful connection. Profile and merchant features remain in the package but are paused while scorer development continues.
+
+## Checks
+29 tests passed across the existing suite and new player-scoring tests, including the actual app's automatic innings change and undo restoration. JavaScript syntax, HTML IDs and script files checked. Browser executable unavailable in this environment: live browser, offline restore and spectator synchronization still require user validation. No live Supabase data was changed by the assistant.
+
+---
+Previous v15 instructions:
+
 # QuickCricket v15 — Profiles & photos
 
 ## Install this release

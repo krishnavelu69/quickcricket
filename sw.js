@@ -1,5 +1,5 @@
-const CACHE = 'quickcricket-v15-profiles-photos';
-const FILES = ['./', './index.html', './style.css?v=15', './app.js?v=15', './navigation.js?v=15', './manifest.json', './business-store.js?v=15', './business.js?v=15', './merchant-cloud.js?v=15', './product-model.js?v=15', './product-cloud.js?v=15', './catalog.js?v=15', './order-model.js?v=15', './orders.js?v=15', './media.js?v=15', './profiles.js?v=15'];
+const CACHE = 'quickcricket-v16-player-scoring';
+const FILES = ['./', './index.html', './style.css?v=16', './app.js?v=16', './cricket-players.js?v=16', './navigation.js?v=16', './manifest.json', './business-store.js?v=16', './business.js?v=16', './merchant-cloud.js?v=16', './product-model.js?v=16', './product-cloud.js?v=16', './catalog.js?v=16', './order-model.js?v=16', './orders.js?v=16', './media.js?v=16', './profiles.js?v=16'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
 });

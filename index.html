@@ -7,7 +7,7 @@
   <meta name="description" content="QuickCricket — one platform for live sports, equipment, pre-owned gear and venue bookings." />
   <title>QuickCricket | Sports Platform</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=15" />
+  <link rel="stylesheet" href="style.css?v=16" />
 </head>
 <body>
   <header class="topbar">
@@ -82,7 +82,7 @@
           <label>Overs per innings<input id="oversLimit" type="number" min="1" max="50" value="20" required /></label>
           <label>Players per side<input id="playersLimit" type="number" min="2" max="15" value="11" required /></label>
         </div>
-        <button class="button primary full" type="submit">Start match <span aria-hidden="true">→</span></button>
+        <label>Batting team playing XI / squad (one name per line)<textarea id="teamAPlayers" rows="6" required placeholder="Enter exactly the number of players selected above"></textarea></label><label>Bowling team playing XI / squad (one name per line)<textarea id="teamBPlayers" rows="6" required></textarea></label><p class="fine-print">Enter your selected playing side, not the full club squad. First team bats first. Team membership, captain/wicketkeeper roles and toss controls follow in the next scorer stages.</p><button class="button primary full" type="submit">Start match <span aria-hidden="true">→</span></button>
       </form>
       <div class="resume-row" id="resumeRow" hidden><span>A saved match is available on this device.</span><button class="button quiet" id="resumeButton" type="button">Resume</button></div>
       <p class="fine-print">Early prototype · Your match is saved in this browser on this device. Cloud sharing is optional.</p>
@@ -97,7 +97,7 @@
         <div class="scoreboard-bottom"><span id="targetDisplay">Target: —</span><span id="bowlingTeamDisplay">Bowling: Team B</span></div>
       </div>
 
-      <div class="panel scoring-panel">
+      <p id="legacyScoringNote" class="panel" hidden>This older match retains total-only scoring. Finish it normally; start a new match for player statistics.</p><div id="playerPanel" class="panel" hidden><h2>Players on the field</h2><p id="playerStatus" role="status"></p><div class="business-form"><label>Striker<select id="strikerSelect"></select></label><label>Non-striker<select id="nonStrikerSelect"></select></label><label>Bowler<select id="bowlerSelect"></select></label><button id="confirmPlayers" class="button primary" type="button">Confirm players</button></div><details><summary>Full batting and bowling scorecards</summary><div id="playerScorecards"></div></details></div><div class="panel scoring-panel">
         <div class="section-heading"><div><p class="eyebrow">SCORING</p><h2>Record this ball</h2></div><span class="hint">Tap the outcome</span></div>
         <div class="run-grid" id="runButtons">
           <button class="run-button" data-runs="0" type="button">0</button>
@@ -115,7 +115,7 @@
           <button class="button danger" id="wicketButton" type="button">Wicket</button>
           <button class="button quiet" id="undoButton" type="button">↶ Undo</button>
         </div>
-        <p class="fine-print">Prototype note: advanced wicket types, byes off no-balls, and batter-by-batter stats are not included yet. Use Undo to correct the latest entry.</p>
+        <p class="fine-print">Player-scoring pilot: wickets currently support legal balls with zero runs. No-ball byes, free-hit restrictions, wickets with runs, penalty runs and retirements are not supported yet. Use Undo for the last scoring action.</p>
       </div>
 
       <div class="panel match-actions">
@@ -130,7 +130,7 @@
       <div class="result-banner" id="resultBanner" hidden></div>
     </section>
     </div>
-    <footer><span>QuickCricket v15 · Profiles & photos</span><span>Built for the love of the game</span></footer>
+    <footer><span>QuickCricket v16 · Player scoring</span><span>Built for the love of the game</span></footer>
   </main>
   <dialog id="detailsDialog" class="dialog-card">
     <form method="dialog"><button class="dialog-close" aria-label="Close" value="close">×</button></form>
@@ -140,13 +140,13 @@
   </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="app.js?v=15"></script>
-  <script src="navigation.js?v=15"></script>
-  <script src="business-store.js?v=15"></script>
-  <script src="business.js?v=15"></script>
-  <script src="media.js?v=15"></script><script src="profiles.js?v=15"></script><script src="merchant-cloud.js?v=15"></script>
-<script src="product-model.js?v=15"></script>
-<script src="product-cloud.js?v=15"></script>
-<script src="order-model.js?v=15"></script><script src="orders.js?v=15"></script><script src="catalog.js?v=15"></script>
+  <script src="cricket-players.js?v=16"></script><script src="app.js?v=16"></script>
+  <script src="navigation.js?v=16"></script>
+  <script src="business-store.js?v=16"></script>
+  <script src="business.js?v=16"></script>
+  <script src="media.js?v=16"></script><script src="profiles.js?v=16"></script><script src="merchant-cloud.js?v=16"></script>
+<script src="product-model.js?v=16"></script>
+<script src="product-cloud.js?v=16"></script>
+<script src="order-model.js?v=16"></script><script src="orders.js?v=16"></script><script src="catalog.js?v=16"></script>
 </body>
 </html>

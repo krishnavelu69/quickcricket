@@ -65,6 +65,7 @@
       signedInUser = data.session?.user || null;
       notifyMerchantAuth();
       cloudStatus(signedInUser ? 'Connected · signed in' : 'Connected · sign in');
+      $('retryCloudButton').hidden = true;
       $('cloudAuthArea').hidden = false;
       $('signOutButton').hidden = !signedInUser;
       $('signUpButton').hidden = !!signedInUser;
@@ -92,6 +93,7 @@
     } catch (error) {
       supabaseClient = null;
       notifyMerchantAuth();
+      $('retryCloudButton').hidden = false;
       cloudStatus('Connection failed');
       showToast(`Supabase connection failed: ${error.message || 'check settings'}`);
     }
@@ -324,6 +326,7 @@
   const emptyState = (setup) => ({
     version: 1,
     teams: [setup.teamA, setup.teamB],
+    rosters: setup.rosters || null,
     oversLimit: setup.oversLimit,
     playersLimit: setup.playersLimit,
     innings: 1,
@@ -361,7 +364,7 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(() => node.classList.remove('show'), 2300);
   }
   function start(setup) {
-    state = emptyState(setup); persist();
+    state = emptyState(setup); if(state.rosters)inn().players=QCCricketPlayers.create(...state.rosters); persist();
     $('setupPanel').hidden = true; $('matchPanel').hidden = false; render();
   }
   // Store only the data needed to roll back one action. Copying full event
@@ -370,7 +373,7 @@
     return {
       inningsData: state.inningsData.map(item => ({
         runs: item.runs, wickets: item.wickets, legalBalls: item.legalBalls,
-        eventCount: item.events.length
+        eventCount: item.events.length, players: item.players ? JSON.parse(JSON.stringify(item.players)) : null
       })),
       currentInnings: state.currentInnings,
       innings: state.innings,
@@ -386,7 +389,8 @@
         runs: saved.runs,
         wickets: saved.wickets,
         legalBalls: saved.legalBalls,
-        events: existing ? existing.events.slice(0, saved.eventCount) : []
+        events: existing ? existing.events.slice(0, saved.eventCount) : [],
+        players: saved.players ? JSON.parse(JSON.stringify(saved.players)) : null
       };
     });
     state.currentInnings = before.currentInnings;
@@ -396,12 +400,15 @@
     state.result = before.result;
   }
   function addEvent(label, runs, opts = {}) {
+    if(new URLSearchParams(location.search).has("match"))return;
     if (!state || state.finished) { showToast('This match has finished. Start a new match to score again.'); return; }
     const current = inn();
+    if(current.players&&!QCCricketPlayers.ready(current.players)){showToast("Choose batters and bowler first.");return;}
     const before = snapshot();
     current.runs += runs;
     if (opts.wicket) current.wickets += 1;
     if (opts.legal !== false) current.legalBalls += 1;
+    if(current.players)QCCricketPlayers.record(current.players,runs,opts,current.legalBalls);
     current.events.push({ id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`, label, runs, wicket: !!opts.wicket, legal: opts.legal !== false, total: current.runs, wickets: current.wickets, balls: current.legalBalls, before, at: new Date().toISOString() });
     checkInningsEnd(); persist(); render();
   }
@@ -418,7 +425,7 @@
         state.target = current.runs + 1;
         state.currentInnings = 1;
         state.innings = 2;
-        state.inningsData.push({ runs: 0, wickets: 0, legalBalls: 0, events: [] });
+        state.inningsData.push({ runs: 0, wickets: 0, legalBalls: 0, events: [], players: state.rosters ? QCCricketPlayers.create(state.rosters[1],state.rosters[0]) : null });
       } else {
         const firstTotal = state.target - 1;
         state.finished = true;
@@ -427,10 +434,11 @@
     }
   }
   function endInnings() {
+    if(new URLSearchParams(location.search).has("match"))return;
     if (!state || state.finished) return;
     if (state.currentInnings === 0) {
       state.target = inn().runs + 1; state.currentInnings = 1; state.innings = 2;
-      state.inningsData.push({ runs: 0, wickets: 0, legalBalls: 0, events: [] });
+      state.inningsData.push({ runs: 0, wickets: 0, legalBalls: 0, events: [], players: state.rosters ? QCCricketPlayers.create(state.rosters[1],state.rosters[0]) : null });
       persist(); render(); showToast(`Innings complete. Target: ${state.target}`);
     } else {
       const firstTotal = state.target - 1, current = inn(); state.finished = true;
@@ -439,6 +447,7 @@
     }
   }
   function undo() {
+    if(new URLSearchParams(location.search).has("match"))return;
     if (!state) { showToast('There is no active match.'); return; }
     // The last delivery may have automatically moved the match into innings two.
     // Find the most recent scoring event across both innings, not only the visible innings.
@@ -452,6 +461,22 @@
     restoreSnapshot(before);
     persist(); render(); showToast('Last scoring action undone.');
   }
+
+  function renderPlayers(){
+    const section=$('playerPanel'),p=inn().players;section.hidden=!p;$('legacyScoringNote').hidden=!!p;if(!p)return;
+    const spectator=new URLSearchParams(location.search).has('match');
+    for(const [id,items,chosen]of [['strikerSelect',p.bat,p.striker],['nonStrikerSelect',p.bat,p.nonStriker],['bowlerSelect',p.bowl,p.bowler]]){
+      const select=$(id);select.replaceChildren();const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose player';select.append(placeholder);
+      items.forEach((item,i)=>{if(item.out)return;const option=document.createElement('option');option.value=i;option.textContent=item.name;select.append(option);});select.value=chosen===null?'':String(chosen);select.disabled=chosen!==null||state.finished||spectator;
+    }
+    $('confirmPlayers').disabled=state.finished||spectator||QCCricketPlayers.ready(p);
+    $('playerStatus').textContent=state.finished?'Match complete.':QCCricketPlayers.ready(p)?`${p.bat[p.striker].name} on strike · ${p.bowl[p.bowler].name} bowling`:'Select openers / incoming batter and bowler, then confirm. A bowler cannot bowl consecutive overs.';
+    const area=$('playerScorecards');area.replaceChildren();
+    function table(title,headers,rows){const heading=document.createElement('h3');heading.textContent=title;area.append(heading);const wrap=document.createElement('div');wrap.className='scorecard-scroll';const t=document.createElement('table');t.className='player-table';const head=document.createElement('tr');for(const h of headers){const cell=document.createElement('th');cell.textContent=h;head.append(cell);}t.append(head);for(const row of rows){const tr=document.createElement('tr');for(const value of row){const td=document.createElement('td');td.textContent=value;tr.append(td);}t.append(tr);}wrap.append(t);area.append(wrap);}
+    state.inningsData.forEach((inning,i)=>{if(!inning.players)return;const q=inning.players;table(state.teams[i]+' batting',['Batter','R','B','4','6','Status'],q.bat.map((b,j)=>[b.name+(j===q.striker?' *':''),b.runs,b.balls,b.fours,b.sixes,b.out||((j===q.striker||j===q.nonStriker||b.balls)?'not out':'yet to bat')]));table(state.teams[1-i]+' bowling',['Bowler','O','R','W'],q.bowl.map(b=>[b.name,oversText(b.balls),b.runs,b.wickets]));const extras=document.createElement('p');extras.textContent=`Extras: Wd ${q.extras.wide}, Nb ${q.extras.noBall}, B ${q.extras.bye}, Lb ${q.extras.legBye}`;area.append(extras);});
+  }
+  $('confirmPlayers').addEventListener('click',()=>{if(!state||state.finished||new URLSearchParams(location.search).has('match'))return;try{const ids=['strikerSelect','nonStrikerSelect','bowlerSelect'].map(id=>$(id).value===''?null:Number($(id).value));QCCricketPlayers.select(inn().players,...ids);persist();render();}catch(error){showToast(error.message);}});
+
   function render() {
     if (!state) return;
     const current = inn();
@@ -477,8 +502,9 @@
     });
     $('resultBanner').hidden = !state.finished;
     if (state.finished) $('resultBanner').textContent = `🏆 ${state.result}`;
-    document.querySelectorAll('#runButtons button, #wideButton, #noBallButton, #byeButton, #legByeButton, #wicketButton, #endInningsButton').forEach(button => button.disabled = state.finished);
-    $('undoButton').disabled = !state.inningsData.some(inning => inning.events.length > 0);
+    document.querySelectorAll('#runButtons button, #wideButton, #noBallButton, #byeButton, #legByeButton, #wicketButton, #endInningsButton').forEach(button => button.disabled = state.finished || new URLSearchParams(location.search).has("match"));
+    $('undoButton').disabled = new URLSearchParams(location.search).has('match') || !state.inningsData.some(inning => inning.events.length > 0);
+    renderPlayers();
     $('connectionStatus').textContent = 'Saved on this device';
   }
 
@@ -489,7 +515,8 @@
     if (teamA.toLowerCase() === teamB.toLowerCase()) { showToast('Please enter two different team names.'); return; }
     if (!Number.isInteger(oversLimit) || oversLimit < 1 || oversLimit > 50) { showToast('Overs must be between 1 and 50.'); return; }
     if (!Number.isInteger(playersLimit) || playersLimit < 2 || playersLimit > 15) { showToast('Players per side must be between 2 and 15.'); return; }
-    start({ teamA, teamB, oversLimit, playersLimit });
+    let rosters;try{rosters=[QCCricketPlayers.roster($('teamAPlayers').value,playersLimit),QCCricketPlayers.roster($('teamBPlayers').value,playersLimit)];}catch(error){showToast(error.message);return;}
+    start({ teamA, teamB, oversLimit, playersLimit, rosters });
   });
   $('runButtons').addEventListener('click', event => { const button = event.target.closest('[data-runs]'); if (button) addEvent(`${button.dataset.runs} run${button.dataset.runs === '1' ? '' : 's'}`, Number(button.dataset.runs)); });
   $('wideButton').addEventListener('click', () => {
@@ -497,7 +524,7 @@
     if (value === null) return;
     const extra = Number(value);
     if (Number.isInteger(extra) && extra >= 0 && extra <= 6) {
-      addEvent(extra ? `Wide +${1 + extra} total` : 'Wide +1', 1 + extra, { legal: false });
+      addEvent(extra ? `Wide +${1 + extra} total` : 'Wide +1', 1 + extra, { legal: false, kind: 'wide' });
     } else showToast('Enter a whole number from 0 to 6.');
   });
   $('noBallButton').addEventListener('click', () => {
@@ -505,12 +532,12 @@
     if (value === null) return;
     const batRuns = Number(value);
     if (Number.isInteger(batRuns) && batRuns >= 0 && batRuns <= 6) {
-      addEvent(batRuns ? `No-ball +1 penalty, ${batRuns} bat run${batRuns === 1 ? '' : 's'}` : 'No-ball +1', 1 + batRuns, { legal: false });
+      addEvent(batRuns ? `No-ball +1 penalty, ${batRuns} bat run${batRuns === 1 ? '' : 's'}` : 'No-ball +1', 1 + batRuns, { legal: false, kind: 'noBall' });
     } else showToast('Enter a whole number from 0 to 6.');
   });
-  $('byeButton').addEventListener('click', () => { const value = prompt('How many byes? (1–6)', '1'); if (value === null) return; const n = Number(value); if (Number.isInteger(n) && n >= 1 && n <= 6) addEvent(`Bye ${n}`, n); else showToast('Enter a whole number from 1 to 6.'); });
-  $('legByeButton').addEventListener('click', () => { const value = prompt('How many leg-byes? (1–6)', '1'); if (value === null) return; const n = Number(value); if (Number.isInteger(n) && n >= 1 && n <= 6) addEvent(`Leg-bye ${n}`, n); else showToast('Enter a whole number from 1 to 6.'); });
-  $('wicketButton').addEventListener('click', () => { if (confirm('Record one wicket on a legal ball?')) addEvent('Wicket', 0, { wicket: true }); });
+  $('byeButton').addEventListener('click', () => { const value = prompt('How many byes? (1–6)', '1'); if (value === null) return; const n = Number(value); if (Number.isInteger(n) && n >= 1 && n <= 6) addEvent(`Bye ${n}`, n, {kind:'bye'}); else showToast('Enter a whole number from 1 to 6.'); });
+  $('legByeButton').addEventListener('click', () => { const value = prompt('How many leg-byes? (1–6)', '1'); if (value === null) return; const n = Number(value); if (Number.isInteger(n) && n >= 1 && n <= 6) addEvent(`Leg-bye ${n}`, n, {kind:'legBye'}); else showToast('Enter a whole number from 1 to 6.'); });
+  $('wicketButton').addEventListener('click', () => { if(!state||state.finished)return;const choices=['bowled','caught','lbw','stumped','hit wicket','run out'];const answer=prompt('Wicket on a LEGAL ball with ZERO runs. Enter: 1 bowled, 2 caught, 3 LBW, 4 stumped, 5 hit wicket, 6 run out. Other situations are not supported yet.','1');if(answer===null)return;const dismissal=choices[Number(answer)-1];if(!dismissal){showToast('Choose 1–6.');return;}let dismissedEnd='striker';if(dismissal==='run out'){const end=prompt('Who was run out? Enter 1 for striker or 2 for non-striker.','1');if(end===null)return;if(!['1','2'].includes(end)){showToast('Choose 1 or 2.');return;}dismissedEnd=end==='2'?'nonStriker':'striker';}addEvent(dismissal,0,{wicket:true,dismissal,dismissedEnd}); });
   $('undoButton').addEventListener('click', undo); $('endInningsButton').addEventListener('click', () => { if (confirm('End this innings?')) endInnings(); });
   $('newMatchButton').addEventListener('click', () => { if (confirm('Start a new match? The current saved match on this device will be replaced.')) { localStorage.removeItem(STORAGE_KEY); state = null; $('matchPanel').hidden = true; $('setupPanel').hidden = false; $('resumeRow').hidden = true; } });
   $('resumeButton').addEventListener('click', () => { const saved = loadSaved(); if (!saved) { showToast('No valid saved match found.'); return; } state = saved; $('setupPanel').hidden = true; $('matchPanel').hidden = false; render(); });
