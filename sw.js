@@ -1,5 +1,5 @@
-const CACHE = 'quickcricket-v18-toss-roles';
-const FILES = ['./', './index.html', './style.css?v=18', './app.js?v=18', './cricket-players.js?v=18', './navigation.js?v=18', './manifest.json', './business-store.js?v=18', './business.js?v=18', './merchant-cloud.js?v=18', './product-model.js?v=18', './product-cloud.js?v=18', './catalog.js?v=18', './order-model.js?v=18', './orders.js?v=18', './media.js?v=18', './profiles.js?v=18'];
+const CACHE = 'quickcricket-v19-detailed-scorecards';
+const FILES = ['./', './index.html', './style.css?v=19', './app.js?v=19', './cricket-players.js?v=19', './navigation.js?v=19', './manifest.json', './business-store.js?v=19', './business.js?v=19', './merchant-cloud.js?v=19', './product-model.js?v=19', './product-cloud.js?v=19', './catalog.js?v=19', './order-model.js?v=19', './orders.js?v=19', './media.js?v=19', './profiles.js?v=19'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
 });

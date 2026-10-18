@@ -16,5 +16,21 @@ function record(p,runs,opts,legalBalls){if(!ready(p))throw Error('Select the bat
  if(crossed%2)[p.striker,p.nonStriker]=[p.nonStriker,p.striker];
  if(legal&&legalBalls%6===0){[p.striker,p.nonStriker]=[p.nonStriker,p.striker];p.previousBowler=p.bowler;p.bowler=null;}
 }
-const api={roster,create,select,ready,record};if(typeof module==='object')module.exports=api;else root.QCCricketPlayers=api;
+function rate(runs,balls,multiplier){return balls?(runs*multiplier/balls).toFixed(2):'—';}
+// Derive completed maidens from saved deliveries, so Undo and older player matches work.
+function maidens(inning,index){
+ const counts=inning.players.bowl.map(()=>0),groups=new Map(),events=inning.events;
+ events.forEach((event,k)=>{
+  const before=event.before?.inningsData?.[index],after=k+1<events.length?events[k+1].before?.inningsData?.[index]:inning;
+  if(!before?.players||!after?.players)return;
+  const bowler=before.players.bowler;if(!Number.isInteger(bowler))return;
+  const over=Math.floor(before.legalBalls/6),key=over+':'+bowler;
+  let group=groups.get(key);if(!group){group={bowler,legal:0,runs:0,start:before.legalBalls%6};groups.set(key,group);}
+  group.legal+=event.legal?1:0;
+  group.runs+=after.players.bowl[bowler].runs-before.players.bowl[bowler].runs;
+ });
+ for(const group of groups.values())if(group.start===0&&group.legal===6&&group.runs===0)counts[group.bowler]++;
+ return counts;
+}
+const api={roster,create,select,ready,record,rate,maidens};if(typeof module==='object')module.exports=api;else root.QCCricketPlayers=api;
 })(globalThis);

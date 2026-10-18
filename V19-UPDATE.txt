@@ -1,0 +1,11 @@
+QuickCricket v19 - Detailed scorecards
+
+Added batting strike rates, bowling economy, maiden overs, innings totals, extras totals and fall of wickets. Maidens are derived from saved delivery history and update after Undo. Existing player matches are supported. Original total-only matches still use their previous view.
+
+Upload folder contents to your GitHub repository root. No SQL changes. Confirm v19 after deployment.
+
+Practice test: score six dots, open Full batting and bowling scorecards: bowler should show O 1.0, M 1, R 0. Undo: O 0.5 and M 0.
+
+46 automated tests passed. Mobile layout and deployment still need device verification. Advanced dismissal and extras rules remain pending.
+
+Scoring reference: Japan Cricket Association, A Short Guide to Scoring: https://www.cricket.or.jp/documents/scoring_guide.pdf
