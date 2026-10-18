@@ -1,0 +1,31 @@
+QuickCricket v22 - Scoring and recovery bundle
+
+WHAT CHANGED
+- New matches can enable free hits after every no-ball. The free hit persists through wides/no-balls, ends on a legal delivery, and survives refresh and Undo. Old matches keep their prior rules.
+- Wicket form now has Legal / Wide / No-ball delivery choices. Only supported permitted dismissals are selectable: on a wide, stumped / hit wicket / run out; on a no-ball or free hit, run out. Other rare dismissal types are not implemented.
+- Penalties and wickets are recorded together, including run-outs with up to 3 completed runs. Do not enter the same wide/no-ball separately first.
+- Manual End innings can now be undone without deleting the previous delivery.
+- Download and restore match backups from the Live Sports screen. Restore creates a local copy with no cloud link.
+- Keeps the previous valid local save and attempts recovery when the latest saved copy is invalid. Check the last delivery after a recovery.
+- Storage failure displays NOT SAVED; download a backup before closing if this appears.
+- Spectator views do not replace your local scorer match.
+- Starting a new match detaches the old cloud match ID. Cloud references for new saves survive refresh.
+- Cloud writes run serially. Newer scoring changes queue after a successful in-flight write. Failed sync is shown; reconnecting or pressing Sync retries. Other signed-in accounts cannot sync an attached match.
+- Another tab changing the local match blocks further scoring until refresh.
+
+INSTALL
+Download a backup of any current match first. Extract this ZIP, upload the contents of QuickCricket-integration-fixed to the quickcricket GitHub repository root, and wait for deployment. Close old tabs and reopen the public app. Confirm v22. No Supabase SQL changes needed.
+
+ONE PRACTICE CHECK
+Start a new practice match with Free hit enabled. Record a no-ball, then a wide: FREE HIT should stay visible. Refresh: it should remain. Record a legal dot: it should disappear. Undo: it should return. Check the spectator phone receives the new score. Download a match backup and confirm the JSON file downloads.
+For an older local match with no saved cloud reference, load its existing cloud ID while signed in before resuming cloud scoring.
+
+VALIDATION
+87 automated tests passed, including app handlers in a simulated DOM, a full two-innings match, Undo, local recovery/quota failure, and simulated cloud writes. All JS syntax checks and HTML ID/script-reference checks passed. Real mobile browser layout and live Supabase/RLS behavior have not been verified in this environment.
+
+REMAINING LIMITS
+Use one active scoring device per match. There is no server-side cross-device conflict lock yet. Unusual wickets, runners, pre-delivery run-outs, 4+ completed runs with run-outs, penalty runs, retirements, substitutes, DLS and Super Overs remain unsupported. This release does not implement every competition rule or distinguish a boundary four/six from four/six runs physically completed. The umpire remains authoritative.
+
+RULE REFERENCES
+ICC Men's T20I Playing Conditions, effective October 2026, clauses 21.17, 21.18 and 22.9:
+https://images.icc-cricket.com/image/upload/prd/bsxcho7ufe2pjban0wjp.pdf

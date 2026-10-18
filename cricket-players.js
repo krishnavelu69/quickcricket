@@ -4,7 +4,22 @@ function roster(text,count){const names=text.split(/\r?\n/).map(x=>x.trim()).fil
 function create(names,bowlers){return {bat:names.map(name=>({name,runs:0,balls:0,fours:0,sixes:0,out:null})),bowl:bowlers.map(name=>({name,balls:0,runs:0,wickets:0})),striker:null,nonStriker:null,bowler:null,previousBowler:null,extras:{wide:0,noBall:0,bye:0,legBye:0}};}
 function select(p,s,n,b){for(const i of [s,n])if(!Number.isInteger(i)||!p.bat[i]||p.bat[i].out)throw Error('Choose two available batters.');if(s===n)throw Error('Striker and non-striker must differ.');if(p.striker!==null&&p.striker!==s||p.nonStriker!==null&&p.nonStriker!==n)throw Error('Existing batters cannot be replaced here. Use Undo to correct the last ball.');if(!Number.isInteger(b)||!p.bowl[b]||p.bowler===null&&b===p.previousBowler)throw Error('Choose a different bowler for the new over.');if(p.bowler!==null&&p.bowler!==b)throw Error('Change bowlers at the end of an over.');p.striker=s;p.nonStriker=n;p.bowler=b;}
 function ready(p){return p.striker!==null&&p.nonStriker!==null&&p.bowler!==null;}
-function record(p,runs,opts,legalBalls){if(!ready(p))throw Error('Select the batters and bowler before scoring.');const batter=p.bat[p.striker],bowler=p.bowl[p.bowler],kind=opts.kind||'bat',legal=opts.legal!==false;
+function allowedDismissals(kind='bat',freeHit=false){
+ if(freeHit||kind==='noBall')return ['run out'];
+ if(kind==='wide')return ['stumped','hit wicket','run out'];
+ return ['bowled','caught','lbw','stumped','hit wicket','run out'];
+}
+function validateDelivery(runs,opts={},freeHit=false){
+ const kind=opts.kind||'bat',illegal=['wide','noBall'].includes(kind);
+ if(!['bat','wide','noBall','bye','legBye'].includes(kind)||!Number.isInteger(runs)||runs<0||runs>7)throw Error('Invalid delivery or run count.');
+ if(illegal&&(opts.legal!==false||runs<1)||!illegal&&opts.legal===false)throw Error('Check the delivery type and penalty.');
+ if(opts.wicket){
+  const dismissal=opts.dismissal||'bowled';
+  if(!allowedDismissals(kind,freeHit).includes(dismissal))throw Error('That dismissal is not permitted on this delivery. Record the runs without a wicket.');
+  if(dismissal!=='run out'&&runs!==(kind==='wide'?1:0))throw Error('Only run-outs support completed runs with a wicket.');
+ }
+}
+function record(p,runs,opts,legalBalls){validateDelivery(runs,opts,!!opts.freeHit);if(!ready(p))throw Error('Select the batters and bowler before scoring.');const batter=p.bat[p.striker],bowler=p.bowl[p.bowler],kind=opts.kind||'bat',legal=opts.legal!==false;
  if(!['bat','wide','noBall','bye','legBye'].includes(kind))throw Error('Invalid delivery type.');
  const noBallExtra=kind==='noBall'&&['bye','legBye'].includes(opts.extraKind);
  const batRuns=kind==='bat'?runs:kind==='noBall'&&!noBallExtra?runs-1:0;
@@ -43,5 +58,5 @@ function maidens(inning,index){
  for(const group of groups.values())if(group.start===0&&group.legal===6&&group.runs===0)counts[group.bowler]++;
  return counts;
 }
-const api={roster,create,select,ready,record,rate,maidens,extraDelivery};if(typeof module==='object')module.exports=api;else root.QCCricketPlayers=api;
+const api={roster,create,select,ready,record,rate,maidens,extraDelivery,allowedDismissals,validateDelivery};if(typeof module==='object')module.exports=api;else root.QCCricketPlayers=api;
 })(globalThis);

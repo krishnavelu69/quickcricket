@@ -7,7 +7,7 @@
   <meta name="description" content="QuickCricket — one platform for live sports, equipment, pre-owned gear and venue bookings." />
   <title>QuickCricket | Sports Platform</title>
   <link rel="manifest" href="manifest.json" />
-  <link rel="stylesheet" href="style.css?v=21" />
+  <link rel="stylesheet" href="style.css?v=22" />
 </head>
 <body>
   <header class="topbar">
@@ -86,13 +86,15 @@
         <div class="form-row"><label>Team A captain<select id="captainA" required></select></label><label>Team A wicketkeeper<select id="keeperA" required></select></label></div>
         <div class="form-row"><label>Team B captain<select id="captainB" required></select></label><label>Team B wicketkeeper<select id="keeperB" required></select></label></div>
         <div class="form-row"><label>Toss won by<select id="tossWinner" required><option value="">Choose team</option><option value="0">Team A</option><option value="1">Team B</option></select></label><label>Elected to<select id="tossDecision" required><option value="">Choose decision</option><option value="bat">Bat</option><option value="bowl">Bowl</option></select></label></div>
-        <button class="button primary full" type="submit">Start match <span aria-hidden="true">→</span></button>
+        <label class="check-label"><input id="freeHitRule" type="checkbox" checked> Free hit after every no-ball</label><p class="fine-print">Choose this before starting, according to your competition rules. Older saved matches retain their previous rules.</p><button class="button primary full" type="submit">Start match <span aria-hidden="true">→</span></button>
       </form>
       <div class="resume-row" id="resumeRow" hidden><span>A saved match is available on this device.</span><button class="button quiet" id="resumeButton" type="button">Resume</button></div>
       <p class="fine-print">Early prototype · Your match is saved in this browser on this device. Cloud sharing is optional.</p>
     </section>
 
+    <div id="backupControls" class="panel"><button id="downloadMatch" class="button secondary" type="button">Download match backup</button><label>Restore a match backup<input id="restoreMatch" type="file" accept="application/json,.json"></label><p class="fine-print">Keep a downloaded copy before switching devices. Restore creates a local copy; cloud sharing can be enabled separately.</p></div>
     <section id="matchPanel" hidden>
+      <p id="freeHitBanner" class="result-banner" role="status" hidden>FREE HIT · next valid delivery</p>
       <p id="tossSummary" class="fine-print" hidden></p>
       <div class="scoreboard">
         <div class="scoreboard-top"><span class="live-dot"></span><span id="inningsLabel">1ST INNINGS</span><button class="text-button" id="editMatchButton" type="button">Match details</button></div>
@@ -120,7 +122,7 @@
           <button class="button danger" id="wicketButton" type="button">Wicket</button>
           <button class="button quiet" id="undoButton" type="button">↶ Undo</button>
         </div>
-        <p class="fine-print">Player-scoring pilot: wickets currently support legal balls with zero runs. No-ball byes, free-hit restrictions, wickets with runs, penalty runs and retirements are not supported yet. Use Undo for the last scoring action.</p>
+        <p class="fine-print">Supported: six common dismissal types, run-outs with 0–3 completed runs, and permitted wickets on wides/no-balls/free hits. Obstructing the field, hit the ball twice, penalty runs, retirements and pre-delivery run-outs are not supported yet. Follow the umpire and competition rules.</p>
       </div>
 
       <div class="panel match-actions">
@@ -135,22 +137,22 @@
       <div class="result-banner" id="resultBanner" hidden></div>
     </section>
     </div>
-    <footer><span>QuickCricket v21 · Extras scoring</span><span>Built for the love of the game</span></footer>
+    <footer><span>QuickCricket v22 · Scoring & recovery</span><span>Built for the love of the game</span></footer>
   </main>
   <dialog id="extrasDialog" class="dialog-card" aria-labelledby="extrasHeading"><form id="extrasForm" class="business-form">
 <h2 id="extrasHeading">Record extra</h2><p id="extrasHelp"></p>
 <label id="noBallKindRow" hidden>Additional runs credited as<select id="noBallKind"><option value="bat">Bat runs</option><option value="bye">Byes</option><option value="legBye">Leg byes</option></select></label>
 <label><span id="extrasRunsLabel">Runs</span><input id="extrasRuns" type="number" min="0" max="6" step="1" value="0" required inputmode="numeric"></label>
-<p id="extrasPreview" role="status"></p><p class="fine-print">Follow the umpire's signal. Free-hit restrictions and wickets on wides/no-balls are not supported yet.</p>
+<p id="extrasPreview" role="status"></p><p class="fine-print">Follow the umpire's signal. For a wicket on this delivery, cancel and use Wicket → Delivery type to record the extra and wicket together.</p>
 <p id="extrasError" role="alert"></p><button class="button primary" type="submit">Confirm extra</button><button id="cancelExtra" type="button" class="button quiet">Cancel</button></form></dialog>
   <dialog id="wicketDialog" class="dialog-card" aria-labelledby="wicketHeading"><form id="wicketForm" class="business-form">
-<h2 id="wicketHeading">Record wicket</h2><p>Legal deliveries only in this release.</p>
+<h2 id="wicketHeading">Record wicket</h2><label>Delivery type<select id="wicketDelivery"><option value="bat">Legal ball</option><option value="wide">Wide</option><option value="noBall">No-ball</option></select></label><p id="wicketRuleNote" role="status"></p>
 <label>Dismissal<select id="dismissalType"><option>bowled</option><option>caught</option><option>lbw</option><option>stumped</option><option>hit wicket</option><option>run out</option></select></label>
 <label id="fielderRow" hidden>Fielder / wicketkeeper<select id="dismissalFielder"></select></label>
 <div id="runoutFields" hidden><label>Batter dismissed<select id="dismissedBatter"></select></label>
 <label>Completed runs before the wicket (exclude the unfinished run)<input id="wicketRuns" type="number" min="0" max="3" value="0" required></label>
 <label>Runs credited as<select id="wicketRunKind"><option value="bat">Bat runs</option><option value="bye">Byes</option><option value="legBye">Leg byes</option></select></label>
-<label>Surviving batter's end when the ball became dead<select id="survivorEnd"><option value="">Choose end</option><option value="striker">Facing end of this delivery</option><option value="nonStriker">Bowler's end of this delivery</option></select></label><p class="fine-print">Use the umpire's decision. At the end of an over the app swaps ends automatically. Run-outs before delivery, on wides/no-balls, and 4+ completed runs are not supported yet.</p></div>
+<label>Surviving batter's end when the ball became dead<select id="survivorEnd"><option value="">Choose end</option><option value="striker">Facing end of this delivery</option><option value="nonStriker">Bowler's end of this delivery</option></select></label><p class="fine-print">Use the umpire's decision. At the end of an over the app swaps ends automatically. Run-outs before delivery and 4+ completed runs are not supported yet.</p></div>
 <p id="wicketError" role="alert"></p><button class="button danger" type="submit">Confirm wicket</button><button id="cancelWicket" class="button quiet" type="button">Cancel</button></form></dialog>
   <dialog id="detailsDialog" class="dialog-card">
     <form method="dialog"><button class="dialog-close" aria-label="Close" value="close">×</button></form>
@@ -160,13 +162,13 @@
   </dialog>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="cricket-players.js?v=21"></script><script src="app.js?v=21"></script>
-  <script src="navigation.js?v=21"></script>
-  <script src="business-store.js?v=21"></script>
-  <script src="business.js?v=21"></script>
-  <script src="media.js?v=21"></script><script src="profiles.js?v=21"></script><script src="merchant-cloud.js?v=21"></script>
-<script src="product-model.js?v=21"></script>
-<script src="product-cloud.js?v=21"></script>
-<script src="order-model.js?v=21"></script><script src="orders.js?v=21"></script><script src="catalog.js?v=21"></script>
+  <script src="match-storage.js?v=22"></script><script src="cricket-players.js?v=22"></script><script src="app.js?v=22"></script>
+  <script src="navigation.js?v=22"></script>
+  <script src="business-store.js?v=22"></script>
+  <script src="business.js?v=22"></script>
+  <script src="media.js?v=22"></script><script src="profiles.js?v=22"></script><script src="merchant-cloud.js?v=22"></script>
+<script src="product-model.js?v=22"></script>
+<script src="product-cloud.js?v=22"></script>
+<script src="order-model.js?v=22"></script><script src="orders.js?v=22"></script><script src="catalog.js?v=22"></script>
 </body>
 </html>
