@@ -2,7 +2,7 @@
   'use strict';
   const $ = (id) => document.getElementById(id);
   function showSection(name) {
-    const map = { orders: 'ordersPanel', home: 'homePanel', live: 'liveSection', shop: 'shopPanel', used: 'usedPanel', venues: 'venuesPanel', business: 'businessPanel' };
+    const map = { profile: 'profilePanel', orders: 'ordersPanel', home: 'homePanel', live: 'liveSection', shop: 'shopPanel', used: 'usedPanel', venues: 'venuesPanel', business: 'businessPanel' };
     Object.values(map).forEach(id => { const node = $(id); if (node) node.hidden = true; });
     const target = $(map[name] || map.home);
     if (target) target.hidden = false;

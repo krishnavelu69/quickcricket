@@ -1,5 +1,5 @@
-const CACHE = 'quickcricket-v14-mobile-auth';
-const FILES = ['./', './index.html', './style.css?v=14', './app.js?v=14', './navigation.js?v=14', './manifest.json', './business-store.js?v=14', './business.js?v=14', './merchant-cloud.js?v=14', './product-model.js?v=14', './product-cloud.js?v=14', './catalog.js?v=14', './order-model.js?v=14', './orders.js?v=14'];
+const CACHE = 'quickcricket-v15-profiles-photos';
+const FILES = ['./', './index.html', './style.css?v=15', './app.js?v=15', './navigation.js?v=15', './manifest.json', './business-store.js?v=15', './business.js?v=15', './merchant-cloud.js?v=15', './product-model.js?v=15', './product-cloud.js?v=15', './catalog.js?v=15', './order-model.js?v=15', './orders.js?v=15', './media.js?v=15', './profiles.js?v=15'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
 });

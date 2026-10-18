@@ -1,50 +1,27 @@
-# QuickCricket v14 — Mobile sign-in
+# QuickCricket v15 — Profiles & photos
 
-Upload the CONTENTS of this folder to the root of your existing GitHub quickcricket repository (where index.html is), then commit the changes. Do not upload the ZIP or nest the outer folder. Wait for GitHub Pages deployment to finish.
+## Install this release
+1. Open database/005-profiles-photos.sql in Notepad. Copy its CONTENTS into a NEW Supabase SQL Editor query. Run ONCE, after migrations 001–004. Do not rerun any migration that already succeeded. This migration creates the photo bucket and access policies as well as profile fields. No separate bucket setup is needed.
+2. Extract this ZIP into a new folder. Upload the CONTENTS of the app folder to your GitHub quickcricket repository root and Commit changes. Wait for the latest Pages deployment to turn green.
+3. Open your public site on phone and laptop. Confirm v15 · Profiles & photos. Local development remains on localhost:8009 if needed; use the public site to test across devices.
 
-No new SQL migration is needed for v14. Existing order requests still need migration 004 if it has not already succeeded; never rerun a successful migration.
+## What to test
+- Home → My profile / Community: enter your name, area/district, sports and bio. Choose a profile photo and cover. Save, then refresh and confirm they persist.
+- Profiles stay out of the public directory until you tick Show my profile. With that option enabled, confirm another account sees it. Untick it and save to remove the listing. Another user must not be able to edit your record, including through direct API requests.
+- Business Workspace → Online business profiles → Edit business: add a description, logo and cover. Save and refresh to confirm. Your existing profiles are retained.
+- My online products → Edit product: choose a photo, save, and check it in Sports Shop. Only active published products appear. Expand About shop to see business description/cover. Existing order requests continue to work.
+- Try a non-image and a photo over 5 MB: uploads must be rejected. Test owner access with a second account before real customers use uploads.
 
-The supplied project URL and publishable key are built into app.js. New browsers connect automatically. Customers no longer configure Supabase. A Home account button opens the account controls under Live Sports. No secret or service-role key is included. Existing database RLS policies remain essential and unchanged.
+## Photo behavior
+JPEG, PNG and WebP inputs up to 5 MB are supported. HEIC and video are not supported in this release. On iPhone, export an unsupported HEIC photo as JPEG. Images are resized to at most 1600 pixels on the longest edge and re-encoded as JPEG before uploading; transparency becomes white and embedded metadata is not copied.
 
-In Supabase Authentication → URL Configuration, keep Site URL and an allowed Redirect URL set to:
-https://krishnavelu69.github.io/quickcricket/
+The image bucket is PUBLIC: uploaded images can be opened by anyone who has their URL, even when a personal profile or product is unpublished. The UI explains this before upload. Do not upload private documents. Removing an image from a profile/product hides its reference but does not erase the stored file. Replacements and failed saves can leave unused files; owner file deletion and automatic cleanup remain future work. Storage quotas/bandwidth must be monitored before launch.
 
-New signups explicitly request this public confirmation destination. Existing emails are not rewritten. Use a fresh confirmation email. Sign in with email/password after confirmation if the email opened in a different browser.
+Personal profiles have owner-only writes and optional public reads. Merchant private contacts remain excluded from the public catalog. Photo uploads/deletion are restricted to the signed-in user's folder. No service-role or secret keys are shipped. This release requires live RLS/storage tests in your Supabase project; no live migration or upload was performed by the assistant.
 
-Phone check: open the public website and confirm v14 · Mobile sign-in. Open Sign in / My account: email/password and Create account should appear automatically after connection. Test account creation, email confirmation and subsequent sign-in. If connection fails, check internet and tap Retry connection. No clearing of local matches is needed. Old cached builds may need all app tabs closed and reopened; a private tab can verify the deployed version separately.
+## Verification performed
+20 local tests passed (including file limits, path validation, resize/re-encode flow, mobile configuration, orders and existing models). All JavaScript passed syntax checks, HTML IDs are unique and script targets exist. Browser automation could not run because its browser executable is unavailable; phone layout and full upload flow still need the tests above.
 
-This package has local checks, not a verified live mobile signup. Email delivery and Supabase redirect configuration must be tested in your project.
+## Next milestones
+Team profiles, captain/member permissions and invitations; promotional video uploads; then stories/reels and live video with paid viewing. Rankings remain planned at community/district/country scope, with rules undecided. These features are not included in v15. Current goal: integrated beta by 31 October 2026 and public launch in late November or December, subject to validation.
 
----
-Previous release instructions (v13):
-
-# QuickCricket v13 — Order requests
-
-## Install
-Export local business drafts as usual. Stop the old server with Ctrl+C. Extract this ZIP into a new folder. Open cmd in the extracted folder containing index.html, then run:
-
-npx http-server -p 8009 -c-1
-
-Close all QuickCricket tabs and reopen http://localhost:8009. The footer must say v13 · Order requests. Keep the same browser/address; do not clear site data. If EADDRINUSE appears, stop the old server using port 8009 first.
-
-## Supabase setup — once
-Migrations 001, 002 and 003 have already succeeded. Do not rerun them.
-Open database/004-order-requests.sql in Notepad. Copy the entire CONTENTS into a NEW Supabase SQL Editor query and click Run once. Success with no rows returned is normal. If it errors, retain the exact error; do not delete tables or rerun earlier migrations.
-
-## Test with your two accounts
-1. Shop owner: publish an Active product with at least 2 units in stock. Note its stock quantity.
-2. Sign in with your second customer account under Live Sports. Sports Shop → Request product. Request 1 unit and enter test name/contact details. These details are shared with the shop.
-3. Sports Shop → My requests: confirm Pending. Refresh; it should remain visible.
-4. Sign in as owner. Business Workspace → Incoming order requests → Refresh. Accept the request. Inventory stock should decrease by exactly 1. Refresh to confirm it persists.
-5. Sign in as customer. My requests → Refresh: confirm Accepted. It is not marked paid or delivered.
-6. Submit a separate request and reject it as owner; stock must stay unchanged. Submit another and cancel it as customer while Pending; stock must stay unchanged.
-7. Another unrelated account must not see either participant's requests. Before public launch, verify direct API access is also blocked, not just the UI.
-
-## Behavior and limits
-Customers must sign in to submit requests. A shop owner cannot order from their own shop. Pending requests do not reserve stock. The server checks current availability and price on creation, captures that price, and locks stock during acceptance. Repeated acceptance does not deduct twice. Requests can only move from Pending to Accepted, Rejected or Cancelled. Accepted requests cannot be cancelled or refunded in this release. Payment, fulfillment and delivery workflows are not implemented.
-
-Customer name, contact and notes are private to the customer and receiving shop. Table writes are blocked for app clients; authenticated RPC functions validate the caller and make transitions. Row-level security restricts reads. Lists show the latest 200 requests; use Refresh for updates. If sending fails, retry with unchanged details to reuse the same request reference. Check My requests before closing the form and starting a new request after an uncertain response.
-
-Local checks: 15 model tests passed, JavaScript syntax checked, HTML IDs checked for uniqueness. The SQL migration and browser end-to-end flow have not been run against your live Supabase project. Complete the account/stock tests above before real orders.
-
-This remains a local pilot. Public hosting, shared environment configuration, production access testing, moderation and payment integration remain future work. Existing live scoring and local draft modules are retained.
