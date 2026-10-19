@@ -1,0 +1,15 @@
+QuickCricket v23 - Shareable scorecards
+
+Added View / print scorecard and Download scorecard inside the active match screen. Both work for scorers and loaded spectator matches.
+
+The standalone HTML scorecard includes teams, toss, match result or live-snapshot label, both recorded innings, batting figures and dismissals, bowling figures, extras and fall of wickets. It contains no account identifiers or connection keys. It is a snapshot and does not update live.
+
+View / print opens a separate tab. Choose Print / Save as PDF there, then use your browser print options. Download saves quickcricket-scorecard.html; open this in a browser. If a popup is blocked, allow it or use Download. Browser PDF saving and mobile sharing options depend on the device.
+
+Install: upload extracted folder contents to the GitHub repository root, wait for deployment and confirm v23. No SQL changes.
+
+Quick check: open an existing practice match, press View / print scorecard, and check the team names, total and player figures. The original match is unchanged. Then try Download scorecard.
+
+92 automated tests passed, including escaping user-entered names, excluding private metadata, complete and live scorecards, legacy total-only matches, and all prior scorer tests. JavaScript syntax checks passed. Real browser print layout and mobile download behavior still need device verification.
+
+All v22 scoring and single-active-scoring-device limitations still apply; see V22-UPDATE.txt.

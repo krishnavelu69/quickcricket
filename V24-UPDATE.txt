@@ -1,0 +1,11 @@
+QuickCricket v24 - My matches
+
+Live Sports now includes My matches in the signed-in cloud section. Search loaded matches by team, filter finished/not finished, and open a match without copying IDs. Load more fetches another 25 records. Matches are scoped to your signed-in account; local-only matches appear after Save match to cloud. List totals show the currently saved innings, not combined innings totals. Refresh to retrieve the latest scores. Advanced loading by ID remains available.
+
+Opening a cloud match asks before replacing the active screen. Download a backup before switching if you need the current local match. An in-flight cloud save blocks switching; a response arriving after scoring or account changes is discarded. Opening the already active match retains the local version.
+
+Install: extract QuickCricket-v24.zip. Upload the contents inside QuickCricket-v24 to your GitHub repository root, then confirm v24. No Supabase SQL changes needed.
+
+Check: Live Sports -> sign in -> My matches -> Refresh matches. Your saved cloud matches should appear. Open one and check its team names and score. Newly saved matches refresh the list automatically.
+
+Validation: previous 92 tests passed after integration; 4 additional tests passed for owner scoping, sign-out races, network errors and preventing a load from overwriting changed scoring. Real live Supabase access and mobile interaction still require verification. Existing single-scoring-device restrictions remain.

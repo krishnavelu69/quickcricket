@@ -1,5 +1,5 @@
-const CACHE = 'quickcricket-v22-scoring-recovery';
-const FILES = ['./', './index.html', './match-storage.js?v=22', './style.css?v=22', './app.js?v=22', './cricket-players.js?v=22', './navigation.js?v=22', './manifest.json', './business-store.js?v=22', './business.js?v=22', './merchant-cloud.js?v=22', './product-model.js?v=22', './product-cloud.js?v=22', './catalog.js?v=22', './order-model.js?v=22', './orders.js?v=22', './media.js?v=22', './profiles.js?v=22'];
+const CACHE = 'quickcricket-v24-my-matches';
+const FILES = ['./', './index.html', './my-matches.js?v=24', './scorecard-export.js?v=24', './match-storage.js?v=24', './style.css?v=24', './app.js?v=24', './cricket-players.js?v=24', './navigation.js?v=24', './manifest.json', './business-store.js?v=24', './business.js?v=24', './merchant-cloud.js?v=24', './product-model.js?v=24', './product-cloud.js?v=24', './catalog.js?v=24', './order-model.js?v=24', './orders.js?v=24', './media.js?v=24', './profiles.js?v=24'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
 });

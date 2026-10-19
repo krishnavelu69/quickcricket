@@ -162,18 +162,24 @@
     if(cloudWritePromise)return showToast('A cloud save is already running.');
     await syncCloudMatch(true);
   }
-  async function loadExistingCloudMatch() {
+  window.QCMatches={open:loadExistingCloudMatch};
+  async function loadExistingCloudMatch(requestedId) {
     if (!supabaseClient || !signedInUser) return showToast('Connect and sign in first.');
     if(!canEdit())return;
+    if(cloudWritePromise)return showToast('A cloud save is running. Please wait before opening another match.');
+    const id=typeof requestedId==='string'?requestedId:$('existingCloudMatchId').value.trim();
+    if(state&&cloudMatchId===id)return showToast('This match is already open below.');
     if(state&&!confirm('Load this cloud match? Download the current match first if you need to keep it.'))return;
-    const id = $('existingCloudMatchId').value.trim();
+    const originalState=state,originalRevision=state?.localRevision,owner=signedInUser.id;
     if (!/^[0-9a-f-]{36}$/i.test(id)) return showToast('Paste the full 36-character cloud match ID.');
     try {
       const { data, error } = await supabaseClient.from('matches')
         .select('id, team_a, team_b, status, overs_limit, current_innings, score, wickets, match_data, is_public')
         .eq('id', id).eq('created_by', signedInUser.id).single();
       if (error) throw error;
+      if(state!==originalState||state?.localRevision!==originalRevision||signedInUser?.id!==owner)return showToast('The active match or account changed. Open the selected match again.');
       if (!data || !data.match_data) throw new Error('No saved match data was found for that ID.');
+      clearTimeout(cloudSyncTimer);
       applyCloudRow(data);
       $('existingCloudMatchId').value = data.id;
       cloudStatus(data.is_public ? 'Public cloud match loaded' : 'Private cloud match loaded');
@@ -311,7 +317,7 @@
         if(state!==target||isSpectator()||signedInUser?.id!==owner)return;
         cloudMatchId=data.id;state.cloudRef={id:data.id,owner,isPublic:cloudIsPublic};saveLocal();refreshCloudControls();
         cloudStatus((state.localRevision||0)===revision?'Cloud score synced':'Cloud sync pending');
-        if(manual)showToast('Match saved to cloud.');
+        if(manual){showToast('Match saved to cloud.');window.dispatchEvent(new Event('qc-match-saved'));}
         if((state.localRevision||0)!==revision)scheduleCloudSync();
       }catch(error){
         if(state===target){cloudStatus('Cloud not synced · local score retained');if(manual)showToast('Cloud save failed. Your local match is retained.');}
@@ -643,6 +649,17 @@
   $('newMatchButton').addEventListener('click',()=>{if(!canEdit())return;if(confirm('Start a new match? The current match stays saved until you start the new one. Download a backup to keep it permanently.')){clearTimeout(cloudSyncTimer);cloudMatchId=null;cloudIsPublic=false;state=null;$('matchPanel').hidden=true;$('setupPanel').hidden=false;$('resumeRow').hidden=false;refreshCloudControls();}});
   function restoreCloudReference(){cloudMatchId=state?.cloudRef?.id||null;cloudIsPublic=!!state?.cloudRef?.isPublic;refreshCloudControls();}
   $('resumeButton').addEventListener('click',()=>{if(!canEdit())return;const saved=loadSaved();if(!saved)return showToast('No valid saved match found.');state=saved;restoreCloudReference();$('setupPanel').hidden=true;$('matchPanel').hidden=false;render();});
+  function exportScorecard(view){
+    if(!state)return showToast('Start or load a match first.');
+    try{
+      const html=QCScorecardExport.build(state),url=URL.createObjectURL(new Blob([html],{type:'text/html'}));
+      if(view){const popup=window.open(url,'_blank');if(popup){popup.opener=null;}else{URL.revokeObjectURL(url);showToast('Allow the scorecard tab to open, or use Download scorecard.');return;}}
+      else{const a=document.createElement('a');a.href=url;a.download='quickcricket-scorecard.html';document.body.append(a);a.click();a.remove();}
+      setTimeout(()=>URL.revokeObjectURL(url),60000);
+    }catch(error){showToast('Could not create scorecard: '+error.message);}
+  }
+  $('viewScorecard').addEventListener('click',()=>exportScorecard(true));
+  $('downloadScorecard').addEventListener('click',()=>exportScorecard(false));
   $('downloadMatch').addEventListener('click',()=>{
     if(!state)return showToast('No match to download.');
     const blob=new Blob([JSON.stringify({app:'QuickCricket',exportVersion:2,match:state},null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='quickcricket-match-backup.json';document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
