@@ -429,6 +429,7 @@
     if(current.players&&!QCCricketPlayers.ready(current.players)){showToast("Choose batters and bowler first.");return;}
     try{QCCricketPlayers.validateDelivery(runs,opts,!!current.freeHit);}catch(error){showToast(error.message);return false;}
     const before = snapshot();
+    state.redoActions=[];
     current.runs += runs;
     if (opts.wicket) current.wickets += 1;
     if (opts.legal !== false) current.legalBalls += 1;
@@ -461,6 +462,7 @@
   function endInnings() {
     if(!canEdit())return;
     if (!state || state.finished) return;
+    state.redoActions=[];
     const currentInning=inn();currentInning.events.push({id:crypto.randomUUID(),action:'endInnings',label:'Innings ended manually',runs:0,wicket:false,legal:false,total:currentInning.runs,wickets:currentInning.wickets,balls:currentInning.legalBalls,before:snapshot(),at:new Date().toISOString()});
     if (state.currentInnings === 0) {
       state.target = inn().runs + 1; state.currentInnings = 1; state.innings = 2;
@@ -484,10 +486,25 @@
     }
     if (!event) { showToast('No scoring action is available to undo.'); return; }
     const before = event.before;
+    const redoEntry={after:snapshot(),events:state.inningsData.map((inning,i)=>inning.events.slice(before.inningsData[i]?.eventCount||0))};
+    if(!Array.isArray(state.redoActions))state.redoActions=[];
+    state.redoActions.push(redoEntry);if(state.redoActions.length>20)state.redoActions.shift();
     restoreSnapshot(before);
     persist(); render(); showToast('Last scoring action undone.');
   }
 
+  function redo(){
+    if(!canEdit()||!state)return;
+    const actions=state.redoActions;if(!Array.isArray(actions)||!actions.length)return showToast('No undone action is available to redo.');
+    const entry=actions[actions.length-1];
+    try{
+      if(!entry?.after||!Array.isArray(entry.events)||!Array.isArray(entry.after.inningsData))throw Error('Invalid redo entry.');
+      const candidate={...state,...entry.after,inningsData:entry.after.inningsData.map((frame,i)=>({runs:frame.runs,wickets:frame.wickets,legalBalls:frame.legalBalls,freeHit:!!frame.freeHit,players:frame.players?JSON.parse(JSON.stringify(frame.players)):null,events:(state.inningsData[i]?.events||[]).concat(entry.events[i]||[])}))};
+      if(!QCMatchStorage.valid(candidate)||candidate.inningsData.some((inning,i)=>inning.events.length!==entry.after.inningsData[i].eventCount))throw Error('Redo does not match the current match.');
+      state.inningsData=candidate.inningsData;state.currentInnings=candidate.currentInnings;state.innings=candidate.innings;state.target=candidate.target;state.finished=candidate.finished;state.result=candidate.result;
+      actions.pop();persist();render();showToast('Scoring action restored.');
+    }catch(error){showToast('Could not redo this action. The current score has not changed.');}
+  }
   function playerLabel(teamIndex,name){
     const roles=state.roles?.[teamIndex];
     return name+(roles?.captain===name?' (c)':'')+(roles?.keeper===name?' (wk)':'');
@@ -513,7 +530,7 @@
     });
     const legend=document.createElement('p');legend.className='fine-print';legend.textContent='SR: runs per 100 balls · M: maiden overs · Econ: runs conceded per over · * on strike · c: captain · wk: wicketkeeper';area.append(legend);
   }
-  $('confirmPlayers').addEventListener('click',()=>{if(!canEdit())return;if(!state||state.finished||new URLSearchParams(location.search).has('match'))return;try{const ids=['strikerSelect','nonStrikerSelect','bowlerSelect'].map(id=>$(id).value===''?null:Number($(id).value));QCCricketPlayers.select(inn().players,...ids);persist();render();}catch(error){showToast(error.message);}});
+  $('confirmPlayers').addEventListener('click',()=>{if(!canEdit())return;if(!state||state.finished||new URLSearchParams(location.search).has('match'))return;try{const ids=['strikerSelect','nonStrikerSelect','bowlerSelect'].map(id=>$(id).value===''?null:Number($(id).value));QCCricketPlayers.select(inn().players,...ids);state.redoActions=[];persist();render();}catch(error){showToast(error.message);}});
 
   function render() {
     if (!state) return;
@@ -544,6 +561,7 @@
     $('resultBanner').hidden = !state.finished;
     if (state.finished) $('resultBanner').textContent = `🏆 ${state.result}`;
     document.querySelectorAll('#runButtons button, #wideButton, #noBallButton, #byeButton, #legByeButton, #wicketButton, #endInningsButton').forEach(button => button.disabled = state.finished || new URLSearchParams(location.search).has("match"));
+    $('redoButton').disabled=isSpectator()||!state.redoActions?.length;
     $('undoButton').disabled = new URLSearchParams(location.search).has('match') || !state.inningsData.some(inning => inning.events.length > 0);
     renderPlayers();
     $('connectionStatus').textContent = isSpectator()?'Spectator · read only':localSaveMessage;
@@ -645,6 +663,7 @@
     if(!scored){$('wicketError').textContent='Wicket was not recorded. Check the dismissal and delivery type.';return;}
     $('wicketDialog').close();
   });
+  $('redoButton').addEventListener('click',redo);
   $('undoButton').addEventListener('click', undo); $('endInningsButton').addEventListener('click', () => { if (confirm('End this innings?')) endInnings(); });
   $('newMatchButton').addEventListener('click',()=>{if(!canEdit())return;if(confirm('Start a new match? The current match stays saved until you start the new one. Download a backup to keep it permanently.')){clearTimeout(cloudSyncTimer);cloudMatchId=null;cloudIsPublic=false;state=null;$('matchPanel').hidden=true;$('setupPanel').hidden=false;$('resumeRow').hidden=false;refreshCloudControls();}});
   function restoreCloudReference(){cloudMatchId=state?.cloudRef?.id||null;cloudIsPublic=!!state?.cloudRef?.isPublic;refreshCloudControls();}

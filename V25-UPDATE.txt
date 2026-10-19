@@ -1,0 +1,9 @@
+QuickCricket v25 - Undo and redo
+
+Added Redo beside Undo. Restore up to 20 undone scoring actions, including runs, extras, wickets, player figures, free hits, automatic/manual innings changes and completed match results. Redo history persists with the match through refresh and backup. New scoring, manually ending an innings or confirming player selections clears the redo branch. Spectators cannot use Undo or Redo.
+
+Install: extract QuickCricket-v25.zip and upload the contents inside QuickCricket-v25 to the GitHub repository root. Confirm v25. No SQL changes required.
+
+Quick check: record 4 runs, Undo, then Redo. The total and batter should regain 4 runs. Undo again, refresh and try Redo again.
+
+103 automated tests passed. New cases cover multiple undo/redo, refresh, extras/free hits, wickets, innings transitions, result restoration, branch clearing and invalid redo entries. Real mobile and live cloud verification remain necessary. Existing single-active-scoring-device limits still apply.

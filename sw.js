@@ -1,5 +1,5 @@
-const CACHE = 'quickcricket-v24-my-matches';
-const FILES = ['./', './index.html', './my-matches.js?v=24', './scorecard-export.js?v=24', './match-storage.js?v=24', './style.css?v=24', './app.js?v=24', './cricket-players.js?v=24', './navigation.js?v=24', './manifest.json', './business-store.js?v=24', './business.js?v=24', './merchant-cloud.js?v=24', './product-model.js?v=24', './product-cloud.js?v=24', './catalog.js?v=24', './order-model.js?v=24', './orders.js?v=24', './media.js?v=24', './profiles.js?v=24'];
+const CACHE = 'quickcricket-v25-undo-redo';
+const FILES = ['./', './index.html', './my-matches.js?v=25', './scorecard-export.js?v=25', './match-storage.js?v=25', './style.css?v=25', './app.js?v=25', './cricket-players.js?v=25', './navigation.js?v=25', './manifest.json', './business-store.js?v=25', './business.js?v=25', './merchant-cloud.js?v=25', './product-model.js?v=25', './product-cloud.js?v=25', './catalog.js?v=25', './order-model.js?v=25', './orders.js?v=25', './media.js?v=25', './profiles.js?v=25'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
 });
