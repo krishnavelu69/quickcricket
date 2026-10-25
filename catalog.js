@@ -17,9 +17,10 @@
   try{const {data,error}=await client.rpc('qc_public_catalog');if(ticket!==generation)return;if(error)throw error;products=data||[];loaded=true;render();}
   catch(error){if(ticket===generation)$('catalogStatus').textContent=['PGRST202','42883'].includes(error.code)?'Catalog setup pending: the app owner needs to apply database/003-public-catalog.sql.':'Could not load products. '+(error.message||'Check your connection and refresh.');}
  }
- $('catalogRefresh').addEventListener('click',refresh);$('catalogSearch').addEventListener('input',render);$('catalogInStock').addEventListener('change',render);
+ async function shops(){const {client}=window.QCCloud?.getContext()||{};if(!client)return;const ticket=generation;$('shopDirectoryStatus').textContent='Loading shops…';try{const {data,error}=await client.rpc('qc_public_shops');if(ticket!==generation)return;if(error)throw error;$('shopDirectory').replaceChildren();for(const shop of data||[]){const card=text($('shopDirectory'),'article','','panel');QCMedia.show(card,client,shop.cover_path,'Shop cover','media-cover');QCMedia.show(card,client,shop.logo_path,shop.name+' logo','media-avatar');text(card,'h3',shop.name);text(card,'p',shop.area);text(card,'p',shop.description);const b=text(card,'button','Search products from '+shop.name,'button secondary');b.type='button';b.addEventListener('click',()=>{$('catalogSearch').value=shop.name;render();$('catalogList').scrollIntoView({block:'start'});});}$('shopDirectoryStatus').textContent=`${(data||[]).length} public shops · up to 200 shown.`;}catch(e){if(ticket===generation)$('shopDirectoryStatus').textContent='Shop directory unavailable. '+(e.message||'Try refreshing.');}}
+ $('catalogRefresh').addEventListener('click',()=>{refresh();shops();});$('catalogSearch').addEventListener('input',render);$('catalogInStock').addEventListener('change',render);
  window.addEventListener('qc-auth-changed',()=>{generation++;loaded=false;products=[];render();setTimeout(refresh,0);});
  window.addEventListener('qc-products-changed',refresh);
  document.querySelectorAll('[data-open-section="shop"]').forEach(el=>el.addEventListener('click',refresh));
- refresh();
+ window.addEventListener('qc-auth-changed',()=>setTimeout(shops,0));window.addEventListener('qc-merchants-changed',shops);document.querySelectorAll('[data-open-section="shop"]').forEach(el=>el.addEventListener('click',shops));refresh();shops();
 })();

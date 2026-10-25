@@ -1,0 +1,82 @@
+QUICKCRICKET v26 — LIVE SPORTS BUNDLE
+Build date: 20 October 2026
+
+This is one integrated build for end-to-end testing. It is not yet a verified
+production launch: the live Supabase migration and physical-phone checks have
+not been run by Codex.
+
+INSTALL ONCE
+1. In your current app, download the current match backup. Keep your v25 folder.
+   Export business data if you use the older browser-local business screens.
+2. Extract QuickCricket-v26-live-sports.zip to a NEW folder. Do not mix files
+   from older versions. The extracted folder is QuickCricket-v26-live-sports.
+3. Replace the app files in your existing quickcricket GitHub repository with
+   this folder's contents (index.html must remain at the repository root).
+   Wait for GitHub Pages to finish deploying.
+4. Supabase project -> SQL Editor -> New query. Open database/006-live-sports.sql
+   in Notepad, copy its ENTIRE contents into the SQL Editor, and run once.
+   Earlier migrations 001-005 must already be installed. Do not re-run them.
+   Success / No rows returned is normal for this migration.
+5. Open https://krishnavelu69.github.io/quickcricket/?section=live&release=26
+   on each device and confirm the footer says "QuickCricket v26 · Live sports
+   bundle". Close older app tabs and reopen. Do not clear browser storage.
+6. Run the consolidated checks in V26-CHECKLIST.md. Database access verification
+   is included in database/006-verify-access.sql; it needs two existing accounts
+   and rolls back its test rows. Keep this separate from the migration query.
+
+IMPORTANT FOR SCORERS
+After migration, older apps cannot write scores directly. All scoring devices
+must use v26. This protects matches from older clients bypassing scoring control.
+You can still score new local matches without the migration, but cloud saves,
+teams, tournaments, permissions and career statistics need migration 006.
+
+WHAT TO OPEN
+Live Sports -> Cricket hub: public discovery, favourites, teams, squads, player
+profiles, tournament fixtures, groups, tables and leaderboards.
+New match -> Match details and saved squads: load teams BEFORE starting to link
+player statistics. Choose exactly the configured number of players.
+Current match -> Match controls and corrections: administrative scoring,
+earlier corrections, interruptions, outcomes, Super Overs and device handover.
+
+HANDOVER
+Owner saves a cloud match. Another scorer signs in and copies their account ID
+from Match controls. Owner enters that ID and chooses Assign scorer.
+Owner selects Sync and hand over. Other scorer uses Load by match ID, then
+Claim scoring control. Assigned matches are opened by ID; My matches still
+lists owned matches. Only the owner can publish or assign other scorers.
+If a device disappears without handing over, its lease expires after 90 seconds
+without renewal. Reload the newest cloud match before claiming on another device.
+
+DO NOT OVERWRITE A CONFLICT
+If offline edits conflict with a newer cloud score, download the local backup,
+then Reload cloud match. Compare and manually re-enter missing deliveries.
+The app deliberately does not merge two conflicting scoring histories.
+
+WHAT REMAINS LIMITED
+- DLS is deferred. Rain can pause/resume play or finish abandoned/no result;
+  revised DLS targets and reduced-overs calculations are not implemented.
+- Alerts work while the app is open, with up to 20 favourites on this device.
+  Closed-app/background push delivery is not enabled.
+- Super Overs retain regulation and prior rounds in the backup and scorecard.
+  Competition-specific nominations and repeat-round eligibility are scorer
+  responsibilities. There is no Undo across the start of a new Super Over.
+- Substitute handling is fielding-only, not concussion/replacement-player rules.
+- Penalty control awards the current batting side 1-10 runs. Awards to the
+  fielding side's previous/future innings are not implemented.
+- Rare on-ball dismissals record zero completed runs, plus any no-ball/wide
+  penalty. Run-outs support 0-6 completed runs and explicit survivor end.
+- Earlier corrections roll back and require rescoring later deliveries.
+- Points: win 2, tie/no result 1, loss 0. NRR, custom points, automatic qualifier
+  selection and automatic knockout advancement are not implemented. Choose
+  qualified teams/winners when adding knockout fixtures.
+- Career totals use completed accessible cloud matches linked with saved player
+  IDs. Old name-only matches cannot be attributed automatically. Private match
+  statistics are visible only to accounts allowed to read those matches.
+- Team/player profiles here contain text and playing roles. Existing personal,
+  merchant and product photo tools remain separate; new team-logo upload is
+  not part of this bundle.
+- Teams/tournaments require an online connection to save. Scoring itself keeps
+  browser-local saves and backups offline. Automatic off-site database backups
+  and production load testing are not configured by this release.
+
+See V26-CHECKLIST.md for what was tested and what still needs deployment checks.

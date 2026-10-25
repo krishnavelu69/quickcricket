@@ -8,7 +8,7 @@
  async function refresh(){if(busy)return;const ticket=++generation,{client,user}=context();current=null;form.reset();lock();$('personPreview').replaceChildren();$('peopleList').replaceChildren();if(!client)return;
   $('personStatus').textContent=user?'Loading profile…':'Sign in using My account to create your profile.';
   try{const list=await client.from('qc_people').select('*').eq('published',true).order('display_name').limit(100);if(list.error)throw list.error;let own=null;if(user){const r=await client.from('qc_people').select('*').eq('id',user.id).maybeSingle();if(r.error)throw r.error;own=r.data;}
-   if(ticket!==generation)return;for(const p of list.data)card($('peopleList'),p,client);$('peopleStatus').textContent=list.data.length+' public profile(s), up to 100 shown.';
+   if(ticket!==generation)return;for(const p of list.data)card($('peopleList'),p,client);$('peopleSearch').dispatchEvent(new Event('input'));$('peopleStatus').textContent=list.data.length+' public profile(s), up to 100 shown.';
    current=own;if(own){for(const key of ['display_name','area','sports','bio'])form.elements[key].value=own[key];form.elements.published.checked=own.published;card($('personPreview'),own,client);}if(user)$('personStatus').textContent=own?'Your profile is ready to edit.':'Create your sports profile.';
   }catch(e){if(ticket===generation)$('personStatus').textContent=error(e);}
  }
@@ -18,5 +18,6 @@
   try{for(const [key,file]of Object.entries(files))if(file)fields[key]=await QCMedia.upload(client,user,file);if(ticket!==generation)return;const {error:err}=await client.from('qc_people').upsert(fields);if(err)throw err;if(ticket!==generation)return;busy=false;await refresh();$('personStatus').textContent='Profile saved.';}
   catch(err){if(ticket===generation)$('personStatus').textContent=error(err)+' Save not confirmed; refresh before retrying.';}finally{busy=false;lock();}
  });
+ $('peopleSearch').addEventListener('input',()=>{const q=$('peopleSearch').value.trim().toLowerCase();for(const card of $('peopleList').children)card.hidden=!card.textContent.toLowerCase().includes(q);});
  $('personReload').addEventListener('click',refresh);document.querySelectorAll('[data-open-section="profile"]').forEach(e=>e.addEventListener('click',refresh));window.addEventListener('qc-auth-changed',()=>{generation++;current=null;form.reset();$('personPreview').replaceChildren();$('peopleList').replaceChildren();lock();setTimeout(refresh,0);});refresh();
 })();

@@ -3,18 +3,18 @@
  const $=id=>document.getElementById(id),context=()=>window.QCCloud?.getContext()||{},form=$('orderForm'),dialog=$('orderDialog');
  let generation=0,selection=null,pending=null,payload=null,sending=false,acting=false;
  const money=v=>new Intl.NumberFormat('en-LK',{style:'currency',currency:'LKR'}).format(v);
- const errorText=e=>['42P01','PGRST202','42883'].includes(e.code)?'Order setup pending: apply database/004-order-requests.sql once.':e.message||'Check your connection and refresh.';
+ const errorText=e=>['42P01','PGRST202','42883'].includes(e.code)?'Order setup pending: apply database/007-profiles-merchants.sql once.':e.message||'Check your connection and refresh.';
  function add(parent,tag,value,cls){const el=document.createElement(tag);el.textContent=value;if(cls)el.className=cls;parent.append(el);return el;}
  function clear(){ $('buyerOrders').replaceChildren();$('merchantOrders').replaceChildren(); }
  function render(rows,target,merchant){
   for(const row of rows){const card=add($(target),'article','','panel');add(card,'h3',row.product_name);add(card,'p',row.shop_name+' · '+row.status.toUpperCase());add(card,'p',`${row.quantity} × ${money(row.unit_price)} = ${money(row.total)}`);add(card,'p','Reference: '+row.id);add(card,'p',new Date(row.created_at).toLocaleString());
    if(merchant){add(card,'p',row.customer_name+' · '+row.contact);if(row.note)add(card,'p',row.note);}
-   if(row.status==='pending')for(const action of merchant?['accepted','rejected']:['cancelled']){const btn=add(card,'button',({accepted:'Accept request',rejected:'Reject request',cancelled:'Cancel request'})[action],'button secondary');btn.type='button';btn.addEventListener('click',()=>decide(row.id,action));}
+   for(const action of QCOrderModel.actions(row.status,merchant)){const btn=add(card,'button',({accepted:'Accept request',rejected:'Reject request',cancelled:'Cancel order',ready:'Mark ready',completed:'Mark completed'})[action],'button secondary');btn.type='button';btn.addEventListener('click',()=>decide(row.id,action));}
   }
  }
  async function refresh(){
   const ticket=++generation,{client,user}=context();clear();
-  for(const id of ['ordersStatus','incomingStatus'])$(id).textContent=user?'Loading requests…':'Sign in under Live Sports to see requests.';
+  for(const id of ['ordersStatus','incomingStatus'])$(id).textContent=user?'Loading requests…':'Sign in using My account to see requests.';
   if(!client||!user)return;
   try{
    const [buyer,shops]=await Promise.all([client.from('qc_order_requests').select('*').eq('buyer_id',user.id).order('created_at',{ascending:false}).limit(200),client.from('qc_merchant_profiles').select('id').eq('owner_id',user.id)]);
@@ -27,13 +27,13 @@
  }
  async function decide(id,action){
   if(acting)return;const {client,user}=context();if(!client||!user)return;
-  if(!window.confirm(({accepted:'Accept at the displayed price and deduct stock?',rejected:'Reject this request?',cancelled:'Cancel this pending request?'})[action]))return;
+  if(!window.confirm(({accepted:'Accept at the displayed price and deduct stock?',rejected:'Reject this request?',cancelled:'Cancel this order? Stock is restored if it was accepted or ready. Arrange any refund separately.',ready:'Mark this order ready for collection or delivery?',completed:'Confirm this order has been handed to the customer? This does not record payment.'})[action]))return;
   acting=true;const ticket=generation;
   try{const {error}=await client.rpc('qc_decide_order_request',{p_order_id:id,p_action:action});if(error)throw error;if(context().user?.id!==user.id)return;await refresh();window.dispatchEvent(new Event('qc-products-changed'));window.dispatchEvent(new Event('qc-order-stock-changed'));}
   catch(e){if(ticket===generation){$('ordersStatus').textContent=errorText(e);$('incomingStatus').textContent=errorText(e);}}
   finally{acting=false;}
  }
- window.QCOrders={open(product){if(!context().user){$('catalogStatus').textContent='Sign in under Live Sports, then return to request a product.';return;}selection=product;pending=crypto.randomUUID();payload=null;form.reset();$('requestStatus').textContent='';$('orderSummary').textContent=product.name+' · '+product.shop_name+' · '+money(product.price)+' each';dialog.showModal();}};
+ window.QCOrders={open(product){if(!context().user){$('catalogStatus').textContent='Sign in using My account, then return to request a product.';return;}selection=product;pending=crypto.randomUUID();payload=null;form.reset();$('requestStatus').textContent='';$('orderSummary').textContent=product.name+' · '+product.shop_name+' · '+money(product.price)+' each';dialog.showModal();}};
  $('orderClose').addEventListener('click',()=>{if(!sending)dialog.close();});dialog.addEventListener('cancel',e=>{if(sending)e.preventDefault();});
  form.addEventListener('submit',async e=>{
   e.preventDefault();if(sending||!selection)return;const {client,user}=context();if(!client||!user)return;

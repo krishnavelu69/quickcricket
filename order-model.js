@@ -7,5 +7,6 @@
   if(note.length>1000)throw Error('Keep notes under 1000 characters.');
   return {quantity,customer_name,contact,note};
  }
- const api={parse};if(typeof module==='object')module.exports=api;else root.QCOrderModel=api;
+ function actions(status,merchant){return merchant?({pending:['accepted','rejected','cancelled'],accepted:['ready','cancelled'],ready:['completed','cancelled']}[status]||[]):status==='pending'?['cancelled']:[];}
+ const api={parse,actions};if(typeof module==='object')module.exports=api;else root.QCOrderModel=api;
 })(globalThis);

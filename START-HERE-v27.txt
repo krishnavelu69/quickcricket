@@ -1,0 +1,74 @@
+QUICKCRICKET v27 — PROFILES AND MERCHANTS
+
+WHAT IS IN THIS RELEASE
+- Personal profiles: photo, cover, name, area, sports, bio, public/private directory visibility and community search.
+- Teams: logo upload/removal, description, area and reusable squads. Editing an unchanged player name preserves their statistics ID.
+- Merchants: shop details, logo/cover upload and removal; optional public shop directory. Contact details remain private to the merchant's profile.
+- Products: photo, description, LKR price, stock, draft/published and archive. A stale v27 edit cannot overwrite stock changed by another device/order.
+- Orders: Pending -> Accepted -> Ready -> Completed. Rejection and cancellation supported. Acceptance deducts stock once; merchant cancellation of Accepted/Ready restores it once. Customers can cancel only Pending requests.
+- Existing live scoring is retained. No cricket database changes in this migration.
+
+INSTALL ONCE
+1. Keep your v26 folder/ZIP. Export the current match and teams as backups.
+2. Open Supabase -> SQL Editor -> New query.
+3. Copy ONLY the contents of database/007-profiles-merchants.sql into that query and Run.
+   Expected: Success. No rows returned. This migration may safely be run again.
+   Prerequisite: your existing migrations 001-006. Do not rerun the old migrations.
+   Do NOT paste this START-HERE file or a filename into SQL.
+4. Extract this ZIP. Upload the CONTENTS of QuickCricket-v27-profiles-merchants
+   to the root of the GitHub quickcricket repository on main. Replace existing files.
+   Do not upload only the ZIP or put the enclosing folder inside the repository.
+5. Wait for the GitHub Pages deployment to succeed in Actions.
+6. Open https://krishnavelu69.github.io/quickcricket/?section=home
+   Refresh and confirm the footer says QuickCricket v27 · Profiles and merchants.
+   Close and reopen the installed phone app after the deployment.
+   Do not clear storage to fix a version mismatch; preserve local match backups.
+
+COMBINED ACCEPTANCE CHECK
+Use a merchant account and a DIFFERENT customer account, ideally on two devices.
+1. Personal profile: save photo/name/bio, publish, refresh and view from the other account.
+   Unpublish and refresh the other account: the directory card should disappear.
+2. Team: in Live Sports -> Cricket hub -> Teams, upload a logo, save the squad, refresh.
+   Edit the description and confirm the same squad and linked statistics remain.
+3. Merchant: create/edit a Sports shop with logo/cover and check Show this sports shop
+   in the public shop directory. Find it in Sports Shop -> Browse sports shops.
+   Contact details should not appear in that public directory.
+4. Product: publish a photo/product at LKR 100 with stock 5. Customer requests 2.
+   Merchant accepts: stock 3. Mark Ready then Completed. Refresh customer requests;
+   status should be Completed, with the original unit price and total LKR 200.
+5. Cancellation and conflicts: request another 1, accept (stock 2), merchant cancels
+   (stock 3). Refresh: stock stays 3. Customers cannot cancel accepted orders.
+   With a product edit open on a second merchant device, accept a new order on the
+   first. Submitting that old product edit must ask you to refresh, retaining stock.
+
+A product's publication and a shop's directory visibility are separate choices.
+Unpublishing the directory profile does not hide already published products.
+Archive/unpublish products to remove them from the customer catalog.
+
+CURRENT BOUNDARIES
+This is a request-based marketplace. No payment gateway, automatic refunds,
+shipping integration, guaranteed delivery, marketing videos or staff roles yet.
+Completed is a merchant's fulfilment status, not proof of payment.
+Profiles/inventory/order changes need internet. Cricket scoring still supports offline use.
+One photo per product. JPEG/PNG/WebP <=5 MB; HEIC must be exported as JPEG.
+All uploaded images are public by URL, including images on private profiles.
+Removing a displayed image does not erase its storage object.
+Directory/search limits: 100 people, 200 shops/products, 200 recent requests per list.
+Order statuses refresh when you open/refresh requests; no background notifications.
+Renaming a squad player creates a new player ID; it does not merge career histories.
+Previous local used-gear/venue drafts remain prototypes, not public trading/booking.
+
+VALIDATION
+122 existing JavaScript tests passed.
+19 PostgreSQL checks passed with PGlite: migration rerun, public field projection,
+participant permissions, idempotent order retries, insufficient stock, status transitions,
+stock restoration, completion, and stale product updates.
+8 DOM integration checks passed with jsdom and a mocked cloud, including profile/team
+photos, player ID retention, merchant publication and stale inventory form submission.
+These do not replace the above checks on your deployed Supabase project and real phones.
+
+DEVELOPER CHECKS
+node --test tests/*.test.cjs
+Optional test dependencies: npm install --prefix /tmp/qc-tests @electric-sql/pglite jsdom
+QC_TEST_DEPS=/tmp/qc-tests/node_modules node tests/commerce.integration.cjs
+QC_TEST_DEPS=/tmp/qc-tests/node_modules node tests/profiles-ui.integration.cjs
