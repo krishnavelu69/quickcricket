@@ -1,0 +1,32 @@
+QuickCricket v28 — Shop profiles and private verification
+
+UPDATE FROM v27
+1. In Supabase SQL Editor, run ONLY the contents of database/008-private-shop-verification.sql.
+   Migration 007 from v27 must already be installed. Do not paste this instruction file into SQL.
+2. Upload the CONTENTS of this extracted app folder to the GitHub quickcricket repository root on main.
+3. Wait for Pages deployment. Open https://krishnavelu69.github.io/quickcricket/?section=shop
+   Refresh and confirm v28 · Shop profiles and verification in the footer.
+   Your screenshots used a local file:/// copy. Updating that folder alone does not update phones.
+
+EDIT YOUR SHOP
+Sports Shop -> Manage my shop -> Online business profiles -> Edit business.
+Public: display name, city/area, description, logo and cover.
+Private: shop contact number and full verification address.
+Enable Show this sports shop in the public shop directory and Save changes.
+Then Sports Shop -> Refresh products -> Browse sports shops.
+Product publication remains separate from shop-directory publication.
+Do not enter private contact/address details in the public description, area or images.
+
+VERIFICATION FOR THE PLATFORM OWNER
+In your Supabase project -> Table Editor -> qc_merchant_profiles:
+review contact and verification_address. These fields are accessible to the merchant
+owning the record and authorised database administrators, not public shoppers or other merchants.
+This update collects verification details; it does not add an in-app administrator portal,
+approval status, verification badge or a requirement for approval before publishing.
+Existing shops remain intact. Add their full address when you next edit them.
+
+CHECK
+Save a new display name, contact number and full address. Refresh the merchant editor:
+all three should remain. On a different account, the shop directory and product catalog
+should show the display name and public area, with no private contact/full address.
+Use the v27 combined checklist for the remaining profiles and order workflow tests.

@@ -6,7 +6,7 @@
   const status=message=>$('merchantStatus').textContent=message;
   function lock(value){$('merchantForm').querySelectorAll('input,select,textarea,button').forEach(el=>el.disabled=value);}
   function message(error){
-    if(['42P01','PGRST205','42703','PGRST204'].includes(error.code))return 'Database setup needed: run database/007-profiles-merchants.sql in your Supabase SQL Editor, then refresh online profiles.';
+    if(['42P01','PGRST205','42703','PGRST204'].includes(error.code))return 'Database setup needed: run database/008-private-shop-verification.sql in your Supabase SQL Editor, then refresh online profiles.';
     return error.message || 'Could not reach your online account. Check your connection.';
   }
   function text(parent,tag,value,cls){const node=document.createElement(tag);node.textContent=value;if(cls)node.className=cls;parent.append(node);return node;}
@@ -16,10 +16,10 @@
     if(!client||!user){status('Sign in using My account to manage your online business profiles.');return;}
     status('Loading your online profiles…');
     try{
-      const {data,error}=await client.from(table).select('id,name,type,area,contact,description,logo_path,cover_path,directory_public').eq('owner_id',user.id).order('created_at',{ascending:false});
+      const {data,error}=await client.from(table).select('id,name,type,area,contact,description,logo_path,cover_path,directory_public,verification_address').eq('owner_id',user.id).order('created_at',{ascending:false});
       if(version!==revision||context().user?.id!==user.id)return;
       if(error)throw error;
-      for(const item of data){const card=document.createElement('article');card.className='panel';text(card,'span',item.directory_public&&item.type==='shop'?'PUBLIC SHOP PROFILE':'PRIVATE ONLINE PROFILE','eyebrow');QCMedia.show(card,client,item.cover_path,'Business cover','media-cover');QCMedia.show(card,client,item.logo_path,'Business logo','media-avatar');text(card,'h3',item.name);text(card,'p',(item.type==='shop'?'Sports shop':'Venue operator')+' · '+item.area);text(card,'p',item.contact);text(card,'p',item.description);const edit=text(card,'button','Edit business','button secondary');edit.type='button';edit.addEventListener('click',()=>{if(busy)return;editing=item;pendingId=null;$('merchantForm').reset();for(const key of ['name','type','area','contact','description'])$('merchantForm').elements[key].value=item[key]||'';$('merchantForm').elements.directory_public.checked=!!item.directory_public;$('merchantSave').textContent='Save changes';$('merchantCancel').hidden=false;$('merchantForm').scrollIntoView({block:'center',behavior:'smooth'});});$('merchantList').append(card);}
+      for(const item of data){const card=document.createElement('article');card.className='panel';text(card,'span',item.directory_public&&item.type==='shop'?'PUBLIC SHOP PROFILE':'PRIVATE ONLINE PROFILE','eyebrow');QCMedia.show(card,client,item.cover_path,'Business cover','media-cover');QCMedia.show(card,client,item.logo_path,'Business logo','media-avatar');text(card,'h3',item.name);text(card,'p',(item.type==='shop'?'Sports shop':'Venue operator')+' · '+item.area);text(card,'p','Private verification contact: '+item.contact);text(card,'p','Private verification address: '+(item.verification_address||'Not provided — edit your shop to add it.'));text(card,'p',item.description);const edit=text(card,'button','Edit business','button secondary');edit.type='button';edit.addEventListener('click',()=>{if(busy)return;editing=item;pendingId=null;$('merchantForm').reset();for(const key of ['name','type','area','contact','description','verification_address'])$('merchantForm').elements[key].value=item[key]||'';$('merchantForm').elements.directory_public.checked=!!item.directory_public;$('merchantSave').textContent='Save changes';$('merchantCancel').hidden=false;$('merchantForm').scrollIntoView({block:'center',behavior:'smooth'});});$('merchantList').append(card);}
       status(`Signed in as ${user.email || 'your account'} · ${data.length} online business profile(s).`);
       lock(busy);
     }catch(error){if(version===revision){status(message(error));lock(true);}}
@@ -31,8 +31,8 @@
   $('merchantForm').addEventListener('submit',async event=>{
     event.preventDefault();if(busy)return;
     const {client,user}=context();if(!client||!user)return refresh();
-    const fields={};for(const key of ['name','type','area','contact','description'])fields[key]=event.target.elements[key].value.trim();const files={logo_path:event.target.elements.logo.files[0],cover_path:event.target.elements.cover.files[0]};fields.logo_path=editing?.logo_path||null;fields.cover_path=editing?.cover_path||null;fields.directory_public=event.target.elements.directory_public.checked;for(const key of ['logo','cover'])if(event.target.elements['remove_'+key].checked)fields[key+'_path']=null;const ticket=revision;
-    if(!fields.name||!fields.area||!fields.contact){status('Complete all business fields.');return;}
+    const fields={};for(const key of ['name','type','area','contact','description','verification_address'])fields[key]=event.target.elements[key].value.trim();const files={logo_path:event.target.elements.logo.files[0],cover_path:event.target.elements.cover.files[0]};fields.logo_path=editing?.logo_path||null;fields.cover_path=editing?.cover_path||null;fields.directory_public=event.target.elements.directory_public.checked;for(const key of ['logo','cover'])if(event.target.elements['remove_'+key].checked)fields[key+'_path']=null;const ticket=revision;
+    if(!fields.name||!fields.area||!fields.contact||!fields.verification_address){status('Enter the shop name, public area, private contact number and full private address.');return;}
     // Reuse this ID after an uncertain network result to avoid duplicate inserts.
     pendingId ||= crypto.randomUUID();const submittedId=editing?.id||pendingId;
     busy=true;lock(true);status('Saving online profile…');

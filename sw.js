@@ -1,5 +1,5 @@
-const CACHE = 'quickcricket-v27-profiles-merchants';
-const FILES = ['./sports-core.js?v=27', './sports-ui.js?v=27', './', './index.html', './my-matches.js?v=27', './scorecard-export.js?v=27', './match-storage.js?v=27', './style.css?v=27', './app.js?v=27', './cricket-players.js?v=27', './navigation.js?v=27', './manifest.json', './business-store.js?v=27', './business.js?v=27', './merchant-cloud.js?v=27', './product-model.js?v=27', './product-cloud.js?v=27', './catalog.js?v=27', './order-model.js?v=27', './orders.js?v=27', './media.js?v=27', './profiles.js?v=27'];
+const CACHE = 'quickcricket-v28-private-verification';
+const FILES = ['./sports-core.js?v=28', './sports-ui.js?v=28', './', './index.html', './my-matches.js?v=28', './scorecard-export.js?v=28', './match-storage.js?v=28', './style.css?v=28', './app.js?v=28', './cricket-players.js?v=28', './navigation.js?v=28', './manifest.json', './business-store.js?v=28', './business.js?v=28', './merchant-cloud.js?v=28', './product-model.js?v=28', './product-cloud.js?v=28', './catalog.js?v=28', './order-model.js?v=28', './orders.js?v=28', './media.js?v=28', './profiles.js?v=28'];
 self.addEventListener('install', event => {
   event.waitUntil(caches.open(CACHE).then(cache => cache.addAll(FILES)).then(() => self.skipWaiting()));
 });
