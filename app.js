@@ -21,10 +21,29 @@
   let spectatorMatchId = null;
   let applyingRemoteState = false;
   let cloudWritePromise=null;
+  let scoringToken=crypto.randomUUID(),controlHeld=false,cloudConflict=false,controlUser=null,handedOver=false,leaseRenewal=null,authNotified=false;
+  try{scoringToken=sessionStorage.getItem('qc.scoring-token.v26')||scoringToken;sessionStorage.setItem('qc.scoring-token.v26',scoringToken);}catch{}
+  async function claimControl(){
+    if(!cloudMatchId||!signedInUser)throw Error('Save a match to cloud first.');
+    const claimedState=state,claimedId=cloudMatchId,claimedUser=signedInUser.id;
+    const {data,error}=await supabaseClient.rpc('qc_claim_match',{p_id:cloudMatchId,p_token:scoringToken});if(error)throw error;
+    if(state!==claimedState||cloudMatchId!==claimedId||signedInUser?.id!==claimedUser)throw Error('Active match changed while claiming control.');
+    if(data.revision!==(state.cloudRef?.revision??0)){cloudConflict=true;controlHeld=false;throw Error('Cloud score changed. Download your local backup, then reload the cloud match.');}
+    controlHeld=true;handedOver=false;cloudConflict=false;window.dispatchEvent(new Event('qc-score-render'));showToast('This device has scoring control.');return true;
+  }
+  async function releaseControl(){
+    if(!cloudMatchId)return;
+    await syncCloudMatch(true);
+    if(state.cloudRef?.syncedLocalRevision!==state.localRevision)throw Error('Local changes are not synced. Save them before handing over.');
+    handedOver=true;controlHeld=false;clearTimeout(cloudSyncTimer);if(leaseRenewal)await leaseRenewal;
+    const {error}=await supabaseClient.rpc('qc_release_match',{p_id:cloudMatchId,p_token:scoringToken});if(error)throw error;
+    controlHeld=false;window.dispatchEvent(new Event('qc-score-render'));showToast('Control released. Open the match on the other device and claim control.');
+  }
+  setInterval(async()=>{if(!controlHeld||!cloudMatchId||!navigator.onLine||cloudWritePromise||leaseRenewal)return;leaseRenewal=(async()=>{try{const {error}=await supabaseClient.rpc('qc_claim_match',{p_id:cloudMatchId,p_token:scoringToken});if(error)throw error;}catch{controlHeld=false;cloudStatus('Scoring control expired · claim again before sync');}})();try{await leaseRenewal;}finally{leaseRenewal=null;}},30000);
 
   // Reuse the existing client/session for merchant records.
   window.QCCloud = { getContext: () => ({client: supabaseClient, user: signedInUser}) };
-  function notifyMerchantAuth() { window.dispatchEvent(new Event('qc-auth-changed')); }
+  function notifyMerchantAuth() {const userId=signedInUser?.id||null;if(authNotified&&controlUser===userId)return;authNotified=true;controlHeld=false;controlUser=userId;window.dispatchEvent(new Event('qc-auth-changed')); }
   function cloudStatus(message) {
     const node = $('cloudState');
     if (node) node.textContent = message;
@@ -147,7 +166,7 @@
     return {
       team_a: state.teams[0],
       team_b: state.teams[1],
-      status: state.finished ? 'finished' : (state.currentInnings > 0 ? 'live' : 'scheduled'),
+      status: state.finished ? 'finished' : (state.currentInnings > 0 || current.events.length ? 'live' : 'scheduled'),
       overs_limit: state.oversLimit,
       current_innings: state.currentInnings + 1,
       score: current?.runs || 0,
@@ -165,22 +184,22 @@
   window.QCMatches={open:loadExistingCloudMatch};
   async function loadExistingCloudMatch(requestedId) {
     if (!supabaseClient || !signedInUser) return showToast('Connect and sign in first.');
-    if(!canEdit())return;
+    if(isSpectator())return;
     if(cloudWritePromise)return showToast('A cloud save is running. Please wait before opening another match.');
     const id=typeof requestedId==='string'?requestedId:$('existingCloudMatchId').value.trim();
-    if(state&&cloudMatchId===id)return showToast('This match is already open below.');
+    
     if(state&&!confirm('Load this cloud match? Download the current match first if you need to keep it.'))return;
     const originalState=state,originalRevision=state?.localRevision,owner=signedInUser.id;
     if (!/^[0-9a-f-]{36}$/i.test(id)) return showToast('Paste the full 36-character cloud match ID.');
     try {
       const { data, error } = await supabaseClient.from('matches')
-        .select('id, team_a, team_b, status, overs_limit, current_innings, score, wickets, match_data, is_public')
-        .eq('id', id).eq('created_by', signedInUser.id).single();
+        .select('id, created_by, qc_revision, team_a, team_b, status, overs_limit, current_innings, score, wickets, match_data, is_public')
+        .eq('id', id).single();
       if (error) throw error;
       if(state!==originalState||state?.localRevision!==originalRevision||signedInUser?.id!==owner)return showToast('The active match or account changed. Open the selected match again.');
       if (!data || !data.match_data) throw new Error('No saved match data was found for that ID.');
       clearTimeout(cloudSyncTimer);
-      applyCloudRow(data);
+      applyCloudRow(data);controlHeld=false;handedOver=false;cloudConflict=false;
       $('existingCloudMatchId').value = data.id;
       cloudStatus(data.is_public ? 'Public cloud match loaded' : 'Private cloud match loaded');
       showToast('Existing cloud match loaded. Scoring will now sync to this match ID.');
@@ -192,8 +211,7 @@
   async function publishMatch() {
     if (!canEdit() || !supabaseClient || !signedInUser || !cloudMatchId || state?.cloudRef?.owner!==signedInUser.id) return;
     try {
-      const { error } = await supabaseClient.from('matches')
-        .update({ is_public: true }).eq('id', cloudMatchId).select('id').single();
+      const { error } = await supabaseClient.rpc('qc_publish_match',{p_id:cloudMatchId,p_public:true});
       if (error) throw error;
       cloudIsPublic = true;
       state.cloudRef={...state.cloudRef,isPublic:true};saveLocal();
@@ -236,7 +254,7 @@
     state = remoteState;
     cloudMatchId = row.id;
     cloudIsPublic = !!row.is_public;
-    if(!isSpectator()){state.cloudRef={id:row.id,isPublic:!!row.is_public,owner:signedInUser?.id};saveLocal();}
+    if(!isSpectator()){state.cloudRef={id:row.id,isPublic:!!row.is_public,owner:row.created_by,revision:row.qc_revision||0,syncedLocalRevision:state.localRevision||0};saveLocal();}
     $('setupPanel').hidden = true;
     $('matchPanel').hidden = false;
     render();
@@ -247,7 +265,7 @@
     if (!supabaseClient || !id) return;
     try {
       const { data, error } = await supabaseClient.from('matches')
-        .select('id, team_a, team_b, status, overs_limit, current_innings, score, wickets, match_data, is_public')
+        .select('id, created_by, qc_revision, team_a, team_b, status, overs_limit, current_innings, score, wickets, match_data, is_public')
         .eq('id', id).eq('is_public', true).single();
       if (error) throw error;
       if (data) applyCloudRow(data);
@@ -272,7 +290,7 @@
     }
     try {
       const { data, error } = await supabaseClient.from('matches')
-        .select('id, team_a, team_b, status, overs_limit, current_innings, score, wickets, match_data, is_public')
+        .select('id, created_by, qc_revision, team_a, team_b, status, overs_limit, current_innings, score, wickets, match_data, is_public')
         .eq('id', id).eq('is_public', true).single();
       if (error) throw error;
       if (!data?.match_data) throw new Error('No match data was found.');
@@ -304,34 +322,37 @@
     }
   }
   async function syncCloudMatch(manual=false) {
-    if(isSpectator()||storageConflict||cloudWritePromise||!supabaseClient||!signedInUser||!state||applyingRemoteState)return;
+    if(isSpectator()||storageConflict||cloudConflict||cloudWritePromise||!supabaseClient||!signedInUser||!state||applyingRemoteState)return;
     if(!navigator.onLine){cloudStatus('Offline · cloud sync pending');return;}
-    if(!cloudMatchId&&!manual)return;
-    if(cloudMatchId&&state.cloudRef?.owner!==signedInUser.id){cloudStatus('Sign in with the match owner account to sync');return;}
-    const target=state,id=cloudMatchId,owner=signedInUser.id,revision=state.localRevision||0,payload=JSON.parse(JSON.stringify(rowFromState()));
+    if((!cloudMatchId||handedOver)&&!manual)return;
+    const target=state,id=cloudMatchId,user=signedInUser.id,revision=state.localRevision||0,payload=JSON.parse(JSON.stringify(state));
     cloudStatus('Saving match to cloud…');
     cloudWritePromise=(async()=>{
       try{
-        const query=id?supabaseClient.from('matches').update(payload).eq('id',id):supabaseClient.from('matches').insert({...payload,created_by:owner});
-        const {data,error}=await query.select('id').single();if(error)throw error;
-        if(state!==target||isSpectator()||signedInUser?.id!==owner)return;
-        cloudMatchId=data.id;state.cloudRef={id:data.id,owner,isPublic:cloudIsPublic};saveLocal();refreshCloudControls();
+        if(id&&!controlHeld)await claimControl();
+        if(state!==target||signedInUser?.id!==user)return;
+        const {data,error}=await supabaseClient.rpc('qc_write_match',{p_id:id,p_expected:state.cloudRef?.revision||0,p_token:scoringToken,p_state:payload});if(error)throw error;
+        if(state!==target||isSpectator()||signedInUser?.id!==user)return;
+        cloudMatchId=data.id;controlHeld=true;state.cloudRef={id:data.id,owner:data.owner,isPublic:data.is_public,revision:data.revision,syncedLocalRevision:revision};saveLocal();refreshCloudControls();
         cloudStatus((state.localRevision||0)===revision?'Cloud score synced':'Cloud sync pending');
         if(manual){showToast('Match saved to cloud.');window.dispatchEvent(new Event('qc-match-saved'));}
         if((state.localRevision||0)!==revision)scheduleCloudSync();
       }catch(error){
-        if(state===target){cloudStatus('Cloud not synced · local score retained');if(manual)showToast('Cloud save failed. Your local match is retained.');}
+        if(state===target){controlHeld=false;if(String(error.message).includes('CONFLICT'))cloudConflict=true;cloudStatus('Cloud not synced · local score retained');if(manual)showToast(error.message||'Apply database migration 006, then retry.');}
       }
     })();
     try{await cloudWritePromise;}finally{cloudWritePromise=null;}
   }
   function scheduleCloudSync() {
-    if (isSpectator()||storageConflict||!cloudMatchId||!signedInUser||applyingRemoteState) return;
+    if (isSpectator()||storageConflict||handedOver||!cloudMatchId||!signedInUser||applyingRemoteState) return;
     clearTimeout(cloudSyncTimer);cloudSyncTimer=setTimeout(()=>syncCloudMatch(),500);
   }
 
   const emptyState = (setup) => ({
     version: 1,
+    matchKey: crypto.randomUUID(),
+    details: setup.details||{},
+    teamIds: setup.teamIds||null, playerIds: setup.playerIds||null,
     teams: [setup.teamA, setup.teamB],
     rosters: setup.rosters || null,
     roles: setup.roles || null,
@@ -376,9 +397,11 @@
   }
   function canEdit(){
     if(isSpectator())return false;
+    if(cloudConflict){showToast('Cloud conflict. Download backup and reload cloud before scoring.');return false;}
     if(storageConflict){showToast('Another tab changed this match. Download a backup if needed, then refresh before scoring.');return false;}
     return true;
   }
+  function canScore(){if(!canEdit())return false;if(cloudMatchId&&!controlHeld&&navigator.onLine){showToast('Claim scoring control in Match controls before scoring on this device.');return false;}return true;}
   function showToast(message) {
     const node = $('toast'); node.textContent = message; node.classList.add('show');
     clearTimeout(toastTimer); toastTimer = setTimeout(() => node.classList.remove('show'), 2300);
@@ -386,16 +409,17 @@
   function start(setup) {
     if(!canEdit())return;
     clearTimeout(cloudSyncTimer);cloudMatchId=null;cloudIsPublic=false;
-    state = emptyState(setup); if(state.rosters)inn().players=QCCricketPlayers.create(...state.rosters); persist();
+    controlHeld=false;handedOver=false;cloudConflict=false;state = emptyState(setup); if(state.rosters)inn().players=QCCricketPlayers.create(...state.rosters); persist();
     $('setupPanel').hidden = true; $('matchPanel').hidden = false; render();
   }
   // Store only the data needed to roll back one action. Copying full event
   // histories into every event causes rapidly growing, nested save data.
   function snapshot() {
     return {
+      paused:state.paused||null, outcome:state.outcome||null, details:state.details||{}, substitutes:state.substitutes||[],
       inningsData: state.inningsData.map(item => ({
         runs: item.runs, wickets: item.wickets, legalBalls: item.legalBalls,
-        eventCount: item.events.length, freeHit:!!item.freeHit, players: item.players ? JSON.parse(JSON.stringify(item.players)) : null
+        ...(item.penalty?{penalty:item.penalty}:{}),eventCount: item.events.length, freeHit:!!item.freeHit, players: item.players ? JSON.parse(JSON.stringify(item.players)) : null
       })),
       currentInnings: state.currentInnings,
       innings: state.innings,
@@ -408,7 +432,7 @@
     state.inningsData = before.inningsData.map((saved, index) => {
       const existing = state.inningsData[index];
       return {
-        runs: saved.runs,
+        ...(saved.penalty?{penalty:saved.penalty}:{}), runs: saved.runs,
         wickets: saved.wickets,
         legalBalls: saved.legalBalls,
         events: existing ? existing.events.slice(0, saved.eventCount) : [],
@@ -421,10 +445,12 @@
     state.target = before.target;
     state.finished = before.finished;
     state.result = before.result;
+    for(const key of ["paused","outcome","details","substitutes"])state[key]=before[key]??null;
   }
   function addEvent(label, runs, opts = {}) {
-    if(!canEdit())return;
+    if(!canScore())return;
     if (!state || state.finished) { showToast('This match has finished. Start a new match to score again.'); return; }
+    if(state.paused){showToast('Play is paused. Resume play before scoring.');return false;}
     const current = inn();
     if(current.players&&!QCCricketPlayers.ready(current.players)){showToast("Choose batters and bowler first.");return;}
     try{QCCricketPlayers.validateDelivery(runs,opts,!!current.freeHit);}catch(error){showToast(error.message);return false;}
@@ -435,18 +461,18 @@
     if (opts.legal !== false) current.legalBalls += 1;
     if(current.players)QCCricketPlayers.record(current.players,runs,opts,current.legalBalls);
     current.freeHit=!!state.rules?.freeHit&&((opts.kind==='noBall')||(!!current.freeHit&&opts.legal===false));
-    current.events.push({ kind:opts.kind||'bat', id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`, label, runs, wicket: !!opts.wicket, legal: opts.legal !== false, total: current.runs, wickets: current.wickets, balls: current.legalBalls, before, at: new Date().toISOString() });
+    current.events.push({ opts:JSON.parse(JSON.stringify(opts)),dismissedName:opts.wicket?before.inningsData[state.currentInnings].players?.bat[before.inningsData[state.currentInnings].players?.[opts.dismissedEnd||'striker']]?.name:null,kind:opts.kind||'bat', id: crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`, label, runs, wicket: !!opts.wicket, legal: opts.legal !== false, total: current.runs, wickets: current.wickets, balls: current.legalBalls, before, at: new Date().toISOString() });
     checkInningsEnd(); persist(); render(); return true;
   }
   function checkInningsEnd() {
     const current = inn();
     if (state.currentInnings === 1 && state.target !== null && current.runs >= state.target) {
       state.finished = true;
-      const wicketsLeft = Math.max(0, state.playersLimit - 1 - current.wickets);
+      const wicketsLeft = Math.max(0, (state.wicketLimit||state.playersLimit-1) - current.wickets);
       state.result = `${battingTeam()} won by ${wicketsLeft} wicket${wicketsLeft === 1 ? '' : 's'}`;
       return;
     }
-    if (current.legalBalls >= legalBallLimit() || current.wickets >= state.playersLimit - 1) {
+    if (current.legalBalls >= legalBallLimit() || current.wickets >= (state.wicketLimit||state.playersLimit-1)) {
       if (state.currentInnings === 0) {
         state.target = current.runs + 1;
         state.currentInnings = 1;
@@ -460,7 +486,7 @@
     }
   }
   function endInnings() {
-    if(!canEdit())return;
+    if(!canScore())return;
     if (!state || state.finished) return;
     state.redoActions=[];
     const currentInning=inn();currentInning.events.push({id:crypto.randomUUID(),action:'endInnings',label:'Innings ended manually',runs:0,wicket:false,legal:false,total:currentInning.runs,wickets:currentInning.wickets,balls:currentInning.legalBalls,before:snapshot(),at:new Date().toISOString()});
@@ -475,7 +501,7 @@
     }
   }
   function undo() {
-    if(!canEdit())return;
+    if(!canScore())return;
     if (!state) { showToast('There is no active match.'); return; }
     // The last delivery may have automatically moved the match into innings two.
     // Find the most recent scoring event across both innings, not only the visible innings.
@@ -494,14 +520,15 @@
   }
 
   function redo(){
-    if(!canEdit()||!state)return;
+    if(!canScore()||!state)return;
     const actions=state.redoActions;if(!Array.isArray(actions)||!actions.length)return showToast('No undone action is available to redo.');
     const entry=actions[actions.length-1];
     try{
       if(!entry?.after||!Array.isArray(entry.events)||!Array.isArray(entry.after.inningsData))throw Error('Invalid redo entry.');
-      const candidate={...state,...entry.after,inningsData:entry.after.inningsData.map((frame,i)=>({runs:frame.runs,wickets:frame.wickets,legalBalls:frame.legalBalls,freeHit:!!frame.freeHit,players:frame.players?JSON.parse(JSON.stringify(frame.players)):null,events:(state.inningsData[i]?.events||[]).concat(entry.events[i]||[])}))};
+      const candidate={...state,...entry.after,inningsData:entry.after.inningsData.map((frame,i)=>({runs:frame.runs,wickets:frame.wickets,legalBalls:frame.legalBalls,...(frame.penalty?{penalty:frame.penalty}:{}),freeHit:!!frame.freeHit,players:frame.players?JSON.parse(JSON.stringify(frame.players)):null,events:(state.inningsData[i]?.events||[]).concat(entry.events[i]||[])}))};
       if(!QCMatchStorage.valid(candidate)||candidate.inningsData.some((inning,i)=>inning.events.length!==entry.after.inningsData[i].eventCount))throw Error('Redo does not match the current match.');
       state.inningsData=candidate.inningsData;state.currentInnings=candidate.currentInnings;state.innings=candidate.innings;state.target=candidate.target;state.finished=candidate.finished;state.result=candidate.result;
+      for(const key of ["paused","outcome","details","substitutes"])state[key]=candidate[key]??null;
       actions.pop();persist();render();showToast('Scoring action restored.');
     }catch(error){showToast('Could not redo this action. The current score has not changed.');}
   }
@@ -514,7 +541,7 @@
     const spectator=new URLSearchParams(location.search).has('match');
     for(const [id,items,chosen]of [['strikerSelect',p.bat,p.striker],['nonStrikerSelect',p.bat,p.nonStriker],['bowlerSelect',p.bowl,p.bowler]]){
       const select=$(id);select.replaceChildren();const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose player';select.append(placeholder);
-      items.forEach((item,i)=>{if(item.out)return;const option=document.createElement('option');option.value=i;option.textContent=item.name;select.append(option);});select.value=chosen===null?'':String(chosen);select.disabled=chosen!==null||state.finished||spectator;
+      items.forEach((item,i)=>{if(item.out||item.retired==='hurt')return;const option=document.createElement('option');option.value=i;option.textContent=item.name;select.append(option);});select.value=chosen===null?'':String(chosen);select.disabled=chosen!==null||state.finished||spectator;
     }
     $('confirmPlayers').disabled=state.finished||spectator||QCCricketPlayers.ready(p);
     $('playerStatus').textContent=state.finished?'Match complete.':QCCricketPlayers.ready(p)?`${p.bat[p.striker].name} on strike · ${p.bowl[p.bowler].name} bowling`:'Select openers / incoming batter and bowler, then confirm. A bowler cannot bowl consecutive overs.';
@@ -523,14 +550,14 @@
     state.inningsData.forEach((inning,i)=>{
       if(!inning.players)return;
       const q=inning.players,maidens=QCCricketPlayers.maidens(inning,i);
-      table(`${state.teams[i]} · ${inning.runs}/${inning.wickets} (${oversText(inning.legalBalls)} overs)`,['Batter','R','B','4','6','SR','Status'],q.bat.map((b,j)=>[playerLabel(i,b.name)+(j===q.striker?' *':''),b.runs,b.balls,b.fours,b.sixes,QCCricketPlayers.rate(b.runs,b.balls,100),(b.dismissalText||b.out)||((j===q.striker||j===q.nonStriker||b.balls)?'not out':'yet to bat')]));
-      const extras=document.createElement('p');extras.textContent=`Extras ${Object.values(q.extras).reduce((a,b)=>a+b,0)}: Wd ${q.extras.wide}, Nb ${q.extras.noBall}, B ${q.extras.bye}, Lb ${q.extras.legBye}`;area.append(extras);
+      table(`${state.teams[i]} · ${inning.runs}/${inning.wickets} (${oversText(inning.legalBalls)} overs)`,['Batter','R','B','4','6','SR','Status'],q.bat.map((b,j)=>[playerLabel(i,b.name)+(j===q.striker?' *':''),b.runs,b.balls,b.fours,b.sixes,QCCricketPlayers.rate(b.runs,b.balls,100),(b.dismissalText||b.out||(b.retired==='hurt'?'retired hurt':null))||((j===q.striker||j===q.nonStriker||b.balls)?'not out':'yet to bat')]));
+      const extras=document.createElement('p');extras.textContent=`Extras ${Object.values(q.extras).reduce((a,b)=>a+b,0)}: Wd ${q.extras.wide}, Nb ${q.extras.noBall}, B ${q.extras.bye}, Lb ${q.extras.legBye}, Pen ${q.extras.penalty||0}`;area.append(extras);
       table(state.teams[1-i]+' bowling',['Bowler','O','M','R','W','Econ'],q.bowl.map((b,j)=>[playerLabel(1-i,b.name),oversText(b.balls),maidens[j],b.runs,b.wickets,QCCricketPlayers.rate(b.runs,b.balls,6)]));
-      const wickets=inning.events.filter(e=>e.wicket);const fall=document.createElement('p');fall.textContent='Fall of wickets: '+(wickets.length?wickets.map(e=>`${e.total}/${e.wickets} (${oversText(e.balls)})`).join(' · '):'None');area.append(fall);
+      const wickets=inning.events.filter(e=>e.wicket);const fall=document.createElement('p');fall.textContent='Fall of wickets: '+(typeof QCSportsCore!=='undefined'?QCSportsCore.insights(state,i).falls.join(' · '):(wickets.length?wickets.map(e=>`${e.total}/${e.wickets} (${oversText(e.balls)})`).join(' · '):'None'));area.append(fall);
     });
     const legend=document.createElement('p');legend.className='fine-print';legend.textContent='SR: runs per 100 balls · M: maiden overs · Econ: runs conceded per over · * on strike · c: captain · wk: wicketkeeper';area.append(legend);
   }
-  $('confirmPlayers').addEventListener('click',()=>{if(!canEdit())return;if(!state||state.finished||new URLSearchParams(location.search).has('match'))return;try{const ids=['strikerSelect','nonStrikerSelect','bowlerSelect'].map(id=>$(id).value===''?null:Number($(id).value));QCCricketPlayers.select(inn().players,...ids);state.redoActions=[];persist();render();}catch(error){showToast(error.message);}});
+  $('confirmPlayers').addEventListener('click',()=>{if(!canScore())return;if(!state||state.finished||new URLSearchParams(location.search).has('match'))return;try{const ids=['strikerSelect','nonStrikerSelect','bowlerSelect'].map(id=>$(id).value===''?null:Number($(id).value));QCCricketPlayers.select(inn().players,...ids);state.redoActions=[];persist();render();}catch(error){showToast(error.message);}});
 
   function render() {
     if (!state) return;
@@ -564,6 +591,7 @@
     $('redoButton').disabled=isSpectator()||!state.redoActions?.length;
     $('undoButton').disabled = new URLSearchParams(location.search).has('match') || !state.inningsData.some(inning => inning.events.length > 0);
     renderPlayers();
+    window.dispatchEvent(new Event('qc-score-render'));
     $('connectionStatus').textContent = isSpectator()?'Spectator · read only':localSaveMessage;
   }
 
@@ -597,7 +625,7 @@
     if (!Number.isInteger(playersLimit) || playersLimit < 2 || playersLimit > 15) { showToast('Players per side must be between 2 and 15.'); return; }
     let rosters;try{rosters=[QCCricketPlayers.roster($('teamAPlayers').value,playersLimit),QCCricketPlayers.roster($('teamBPlayers').value,playersLimit)];}catch(error){showToast(error.message);return;}
     try{const roles=['A','B'].map(side=>({captain:$('captain'+side).value,keeper:$('keeper'+side).value}));
-      start({...prepareTossSetup([teamA,teamB],rosters,roles,$('tossWinner').value,$('tossDecision').value),oversLimit,playersLimit,freeHit:$('freeHitRule').checked});
+      start({...prepareTossSetup([teamA,teamB],rosters,roles,$('tossWinner').value,$('tossDecision').value),oversLimit,playersLimit,freeHit:$('freeHitRule').checked,details:window.QCSportsUI?.setupDetails?.()||{},...(window.QCSportsUI?.setupTeams?.([teamA,teamB],rosters,$('tossWinner').value,$('tossDecision').value)||{})});
     }catch(error){showToast(error.message);}
   });
   $('runButtons').addEventListener('click', event => { const button = event.target.closest('[data-runs]'); if (button) addEvent(`${button.dataset.runs} run${button.dataset.runs === '1' ? '' : 's'}`, Number(button.dataset.runs)); });
@@ -630,7 +658,7 @@
     if(!allowed.includes($('dismissalType').value))$('dismissalType').value=allowed[0];
     const type=$('dismissalType').value,runout=type==='run out';
     $('wicketRunKind').disabled=kind==='wide';
-    $('wicketRuleNote').textContent=inn().freeHit?'FREE HIT: only run-out is supported here. Record other outcomes without a wicket.':kind==='noBall'?'No-ball: only run-out is supported here. The 1-run penalty is added automatically.':kind==='wide'?'Wide: stumped, hit wicket or run-out. The 1-run penalty is added automatically.':'Legal delivery. Choose the dismissal signalled by the umpire.';
+    $('wicketRuleNote').textContent=inn().freeHit?'FREE HIT: run-out, obstructing the field and hit the ball twice are available. Record other outcomes without a wicket.':kind==='noBall'?'No-ball: run-out, obstructing the field and hit the ball twice are available. The 1-run penalty is added automatically.':kind==='wide'?'Wide: stumped, hit wicket, run-out or obstructing the field. The 1-run penalty is added automatically.':'Legal delivery. Choose the dismissal signalled by the umpire.';
     $('runoutFields').hidden=!runout;$('fielderRow').hidden=!['caught','stumped','run out'].includes(type);
     $('survivorEnd').required=runout;
   }
@@ -644,7 +672,7 @@
     wicketContext={state,inning:inn(),count:inn().events.length};
     $('wicketForm').reset();$('wicketError').textContent='';
     const field=$('dismissalFielder');field.replaceChildren();
-    for(const name of ['',...(p?p.bowl.map(b=>b.name):[])]){const o=document.createElement('option');o.value=name;o.textContent=name||'Not recorded';field.append(o);}
+    for(const name of ['',...(p?p.bowl.map(b=>b.name):[]),...(state.substitutes||[]).filter(x=>x.inning===state.currentInnings).map(x=>x.name)]){const o=document.createElement('option');o.value=name;o.textContent=name||'Not recorded';field.append(o);}
     const dismissed=$('dismissedBatter');dismissed.replaceChildren();
     for(const slot of ['striker','nonStriker']){const o=document.createElement('option');o.value=slot;o.textContent=p?p.bat[p[slot]].name:slot;dismissed.append(o);}
     updateWicketFields();$('wicketDialog').showModal();
@@ -653,7 +681,7 @@
     event.preventDefault();
     if(!state||state.finished||new URLSearchParams(location.search).has('match')||wicketContext?.state!==state||wicketContext.inning!==inn()||wicketContext.count!==inn().events.length){$('wicketDialog').close();showToast('Match changed. Open Wicket again.');return;}
     const dismissal=$('dismissalType').value,runout=dismissal==='run out',runs=runout?Number($('wicketRuns').value):0;
-    if(!Number.isInteger(runs)||runs<0||runs>3){$('wicketError').textContent='Enter 0–3 completed runs.';return;}
+    if(!Number.isInteger(runs)||runs<0||runs>6){$('wicketError').textContent='Enter 0–6 completed runs.';return;}
     if(runout&&!['striker','nonStriker'].includes($('survivorEnd').value)){$('wicketError').textContent='Choose the surviving batter’s end.';return;}
     const delivery=$('wicketDelivery').value,penalty=delivery==='wide'||delivery==='noBall',total=runs+(penalty?1:0);
     if(state.currentInnings===1&&inn().runs+total>=state.target){$('wicketError').textContent='These runs reach the target before the wicket. Cancel and record the winning runs/extras instead.';return;}
@@ -708,6 +736,31 @@
   $('publishMatchButton').addEventListener('click', publishMatch);
   $('shareMatchButton').addEventListener('click', copySpectatorLink);
 
+  window.QCScorer={
+    read:()=>state?JSON.parse(JSON.stringify(state)):null,
+    editable:()=>!isSpectator(),claim:claimControl,release:releaseControl,
+    reload:()=>loadExistingCloudMatch(cloudMatchId),
+    control:()=>({held:controlHeld,conflict:cloudConflict,id:cloudMatchId}),
+    async assign(user,allow){if(!supabaseClient||!cloudMatchId)throw Error('Save a cloud match first.');const {error}=await supabaseClient.rpc('qc_assign_scorer',{p_id:cloudMatchId,p_user:user,p_allow:allow});if(error)throw error;},
+    action(type,arg){
+      if(!canScore()||!state)return false;
+      const before=snapshot(),index=state.currentInnings,result=QCSportsCore.action(state,type,arg);
+      Object.assign(state,result.state);state.redoActions=[];const current=state.inningsData[index];
+      current.events.push({id:crypto.randomUUID(),action:type,label:result.label,runs:current.runs-before.inningsData[index].runs,wicket:result.wicket,dismissedName:result.dismissedName,legal:false,total:current.runs,wickets:current.wickets,balls:current.legalBalls,before,at:new Date().toISOString()});
+      if(['penalty','retire','timedOut','preRunout'].includes(type))checkInningsEnd();persist();render();return true;
+    },
+    correct(index,eventIndex){
+      if(!canScore()||!state)return;
+      const event=state.inningsData[index]?.events[eventIndex];if(!event?.before)throw Error('No saved state for that event.');
+      if(!confirm('Roll back to before this event? All later deliveries must be scored again. Download a backup first.'))return;
+      restoreSnapshot(event.before);state.redoActions=[];persist();render();
+    },
+    superOver(){
+      if(!canScore()||!state)return;
+      const next=QCSportsCore.superOver(state);if(next.rosters)next.inningsData[0].players=QCCricketPlayers.create(...next.rosters);
+      Object.assign(state,next);persist();render();
+    }
+  };
   // Restore saved cloud configuration when the Supabase library is available.
   if (getSupabaseLibrary()) initCloudConfig();
   else {
