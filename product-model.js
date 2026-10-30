@@ -9,7 +9,8 @@
     const price=Number(priceText),stock=Number(fields.stock);
     if(!Number.isFinite(price)||price<=0||price>100000000)throw Error('Enter a price above zero, up to LKR 100,000,000.');
     if(String(fields.stock).trim()===''||!Number.isInteger(stock)||stock<0||stock>1000000)throw Error('Stock must be a whole number from 0 to 1,000,000.');
-    return {merchant_id:fields.merchant_id,name,description,price,stock,active:fields.active==='true',published:fields.active==='true' && fields.published==='true'};
+    const category=String(fields.category||'Other').trim();if(!['Cricket','Clothing','Footwear','Fitness','Other'].includes(category))throw Error('Choose a product category.');
+    return {merchant_id:fields.merchant_id,name,description,category,price,stock,active:fields.active==='true',published:fields.active==='true' && fields.published==='true'};
   }
   if(typeof module!=='undefined'&&module.exports)module.exports={parse};else root.QCProductModel={parse};
 })(typeof window==='undefined'?globalThis:window);

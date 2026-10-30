@@ -4,7 +4,7 @@
  function text(parent,tag,value){const e=document.createElement(tag);e.textContent=value;parent.append(e);return e;}
  function lock(){for(const e of form.elements)e.disabled=busy||!context().user;}
  function error(e){return ['42P01','PGRST205','42703','PGRST204'].includes(e.code)?'Setup needed: run database/005-profiles-photos.sql once.':e.message||'Connection failed.';}
- function card(parent,p,client){const c=text(parent,'article','');c.className='panel';QCMedia.show(c,client,p.cover_path,'Cover photo','media-cover');QCMedia.show(c,client,p.avatar_path,'Profile photo','media-avatar');text(c,'h3',p.display_name);text(c,'p',[p.area,p.sports].filter(Boolean).join(' · '));text(c,'p',p.bio);}
+ function card(parent,p,client){const c=text(parent,'article','');c.className='panel';QCMedia.show(c,client,p.cover_path,'Cover photo','media-cover');QCMedia.show(c,client,p.avatar_path,'Profile photo','media-avatar');text(c,'h3',p.display_name);text(c,'p',[p.area,p.sports].filter(Boolean).join(' · '));text(c,'p',p.bio);if(p.id!==context().user?.id)window.QCReports?.add(c,'profile',p.id);}
  async function refresh(){if(busy)return;const ticket=++generation,{client,user}=context();current=null;form.reset();lock();$('personPreview').replaceChildren();$('peopleList').replaceChildren();if(!client)return;
   $('personStatus').textContent=user?'Loading profile…':'Sign in using My account to create your profile.';
   try{const list=await client.from('qc_people').select('*').eq('published',true).order('display_name').limit(100);if(list.error)throw list.error;let own=null;if(user){const r=await client.from('qc_people').select('*').eq('id',user.id).maybeSingle();if(r.error)throw r.error;own=r.data;}

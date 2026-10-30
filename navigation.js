@@ -12,6 +12,7 @@
     if (target) target.hidden = false;
     window.scrollTo({ top: 0, behavior: 'auto' });
   }
+  window.QCNavigation={open:showSection};
   document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('[data-open-section]').forEach(button => {
       button.addEventListener('click', () => showSection(button.dataset.openSection));

@@ -19,12 +19,14 @@
   let realtimeChannel = null;
   let spectatorPollTimer = null;
   let spectatorMatchId = null;
+  let spectatorRevision=-1;
   let applyingRemoteState = false;
   let cloudWritePromise=null;
   let scoringToken=crypto.randomUUID(),controlHeld=false,cloudConflict=false,controlUser=null,handedOver=false,leaseRenewal=null,authNotified=false;
   try{scoringToken=sessionStorage.getItem('qc.scoring-token.v26')||scoringToken;sessionStorage.setItem('qc.scoring-token.v26',scoringToken);}catch{}
   async function claimControl(){
     if(!cloudMatchId||!signedInUser)throw Error('Save a match to cloud first.');
+    if(QCSyncQueue.pending(localStorage,state)){await syncCloudMatch(true);if(QCSyncQueue.pending(localStorage,state))throw Error('Sync the pending save before claiming control.');}
     const claimedState=state,claimedId=cloudMatchId,claimedUser=signedInUser.id;
     const {data,error}=await supabaseClient.rpc('qc_claim_match',{p_id:cloudMatchId,p_token:scoringToken});if(error)throw error;
     if(state!==claimedState||cloudMatchId!==claimedId||signedInUser?.id!==claimedUser)throw Error('Active match changed while claiming control.');
@@ -99,7 +101,7 @@
       $('cloudMatchArea').hidden = !signedInUser||isSpectator();
       if (signedInUser) {refreshCloudControls();scheduleCloudSync();}
       supabaseClient.auth.onAuthStateChange((_event, session) => {
-        signedInUser = session?.user || null;
+        signedInUser = session?.user || null;if(_event==='PASSWORD_RECOVERY')setTimeout(()=>window.dispatchEvent(new Event('qc-password-recovery')),0);
         notifyMerchantAuth();
         cloudStatus(signedInUser ? 'Connected · signed in' : 'Connected · sign in');
         $('signOutButton').hidden = !signedInUser;
@@ -137,7 +139,7 @@
     const password = $('authPassword').value;
     if (!email || password.length < 8) return showToast('Enter an email and a password with at least 8 characters.');
     const { error } = await supabaseClient.auth.signUp({ email, password, options: { emailRedirectTo: PUBLIC_CLOUD.siteUrl } });
-    if (error) return showToast(`Sign-up failed: ${error.message}`);
+    if (error){$('authMessage').textContent='Sign-up failed: '+error.message;return showToast(`Sign-up failed: ${error.message}`);} $('authMessage').textContent='Check your email to confirm your account, then sign in.';
     showToast('Sign-up submitted. Check your email if confirmation is required, then sign in.');
   }
   async function signIn() {
@@ -145,8 +147,8 @@
     const email = $('authEmail').value.trim();
     const password = $('authPassword').value;
     const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
-    if (error) return showToast(`Sign-in failed: ${error.message}`);
-    signedInUser = data.user;
+    if (error){$('authMessage').textContent='Sign-in failed: '+error.message;return showToast(`Sign-in failed: ${error.message}`);}
+    signedInUser = data.user;$('authPassword').value='';
     $('cloudAuthArea').hidden = false;
     $('cloudMatchArea').hidden = false;
     refreshCloudControls();
@@ -156,7 +158,7 @@
     if (!supabaseClient) return;
     const { error } = await supabaseClient.auth.signOut();
     if (error) return showToast(`Sign-out failed: ${error.message}`);
-    signedInUser = null;
+    signedInUser = null;notifyMerchantAuth();$('authPassword').value='';
     cloudStatus('Connected · sign in');
     refreshCloudControls();
     showToast('Signed out.');
@@ -199,6 +201,7 @@
       if(state!==originalState||state?.localRevision!==originalRevision||signedInUser?.id!==owner)return showToast('The active match or account changed. Open the selected match again.');
       if (!data || !data.match_data) throw new Error('No saved match data was found for that ID.');
       clearTimeout(cloudSyncTimer);
+      if(state&&QCSyncQueue.pending(localStorage,state)){if(!confirm('Loading cloud will discard this device’s pending save. Download a backup first. Continue?'))return;localStorage.removeItem('quickcricket.pending.v1.'+state.matchKey);}
       applyCloudRow(data);controlHeld=false;handedOver=false;cloudConflict=false;
       $('existingCloudMatchId').value = data.id;
       cloudStatus(data.is_public ? 'Public cloud match loaded' : 'Private cloud match loaded');
@@ -235,6 +238,7 @@
     }
   }
   function applyCloudRow(row) {
+    if(isSpectator()&&row?.id===cloudMatchId&&Number(row.qc_revision)<spectatorRevision)return;
     if (!row || !QCMatchStorage.valid(row.match_data)) throw Error('Saved cloud match has invalid data.');
     // Treat the scalar columns as authoritative for the currently displayed innings.
     // This protects the spectator scoreboard if an older client wrote stale nested JSON.
@@ -250,7 +254,9 @@
       if (row.team_b) remoteState.teams[1] = row.team_b;
     }
     if (Number.isFinite(Number(row.overs_limit)) && Number(row.overs_limit) > 0) remoteState.oversLimit = Number(row.overs_limit);
+    if(isSpectator())spectatorRevision=Number(row.qc_revision)||0;
     applyingRemoteState = true;
+    try{
     state = remoteState;
     cloudMatchId = row.id;
     cloudIsPublic = !!row.is_public;
@@ -258,7 +264,7 @@
     $('setupPanel').hidden = true;
     $('matchPanel').hidden = false;
     render();
-    applyingRemoteState = false;
+    }finally{applyingRemoteState = false;}
     refreshCloudControls();
   }
   async function refreshSpectatorMatch(id) {
@@ -268,7 +274,7 @@
         .select('id, created_by, qc_revision, team_a, team_b, status, overs_limit, current_innings, score, wickets, match_data, is_public')
         .eq('id', id).eq('is_public', true).single();
       if (error) throw error;
-      if (data) applyCloudRow(data);
+      if (data&&id===spectatorMatchId) applyCloudRow(data);
     } catch (error) {
       console.warn('QuickCricket spectator refresh failed:', error.message || error);
       cloudStatus('Spectator refresh needs attention');
@@ -324,27 +330,28 @@
   async function syncCloudMatch(manual=false) {
     if(isSpectator()||storageConflict||cloudConflict||cloudWritePromise||!supabaseClient||!signedInUser||!state||applyingRemoteState)return;
     if(!navigator.onLine){cloudStatus('Offline · cloud sync pending');return;}
-    if((!cloudMatchId||handedOver)&&!manual)return;
-    const target=state,id=cloudMatchId,user=signedInUser.id,revision=state.localRevision||0,payload=JSON.parse(JSON.stringify(state));
+    if((!cloudMatchId&&!QCSyncQueue.pending(localStorage,state)||handedOver)&&!manual)return;
+    const target=state,user=signedInUser.id;
     cloudStatus('Saving match to cloud…');
     cloudWritePromise=(async()=>{
       try{
-        if(id&&!controlHeld)await claimControl();
-        if(state!==target||signedInUser?.id!==user)return;
-        const {data,error}=await supabaseClient.rpc('qc_write_match',{p_id:id,p_expected:state.cloudRef?.revision||0,p_token:scoringToken,p_state:payload});if(error)throw error;
+        const q=QCSyncQueue.prepare(localStorage,target,user,cloudMatchId,scoringToken);
+        const {data,error}=await supabaseClient.rpc('qc_commit_match',{p_request:q.request,p_id:q.id,p_expected:q.expected,p_token:q.token,p_state:q.payload});if(error)throw error;
         if(state!==target||isSpectator()||signedInUser?.id!==user)return;
-        cloudMatchId=data.id;controlHeld=true;state.cloudRef={id:data.id,owner:data.owner,isPublic:data.is_public,revision:data.revision,syncedLocalRevision:revision};saveLocal();refreshCloudControls();
-        cloudStatus((state.localRevision||0)===revision?'Cloud score synced':'Cloud sync pending');
-        if(manual){showToast('Match saved to cloud.');window.dispatchEvent(new Event('qc-match-saved'));}
-        if((state.localRevision||0)!==revision)scheduleCloudSync();
+        cloudMatchId=data.id;cloudIsPublic=!!data.is_public;scoringToken=q.token;try{sessionStorage.setItem('qc.scoring-token.v26',scoringToken);}catch{}controlHeld=data.held!==false;
+        state.cloudRef={id:data.id,owner:data.owner,isPublic:data.is_public,revision:data.revision,syncedLocalRevision:q.revision};if(saveLocal()===false)throw Error('Could not persist cloud acknowledgement; retry after freeing storage.');
+        QCSyncQueue.clear(localStorage,target,q.request);refreshCloudControls();
+        cloudStatus((state.localRevision||0)===q.revision?'Cloud score synced':'Cloud sync pending');
+        if(manual)showToast('Match saved to cloud.');window.dispatchEvent(new Event('qc-match-saved'));
+        if((state.localRevision||0)!==q.revision)scheduleCloudSync();
       }catch(error){
-        if(state===target){controlHeld=false;if(String(error.message).includes('CONFLICT'))cloudConflict=true;cloudStatus('Cloud not synced · local score retained');if(manual)showToast(error.message||'Apply database migration 006, then retry.');}
+        if(state===target){controlHeld=false;if(String(error.message).includes('CONFLICT'))cloudConflict=true;cloudStatus(['PGRST202','42883'].includes(error.code)?'Server update needed · local score retained':'Cloud not synced · local score retained');if(manual)showToast(error.message||'Check your connection and retry.');}
       }
     })();
     try{await cloudWritePromise;}finally{cloudWritePromise=null;}
   }
   function scheduleCloudSync() {
-    if (isSpectator()||storageConflict||handedOver||!cloudMatchId||!signedInUser||applyingRemoteState) return;
+    if (isSpectator()||storageConflict||handedOver||!state||(!cloudMatchId&&!QCSyncQueue.pending(localStorage,state))||!signedInUser||applyingRemoteState) return;
     clearTimeout(cloudSyncTimer);cloudSyncTimer=setTimeout(()=>syncCloudMatch(),500);
   }
 
@@ -379,7 +386,7 @@
     const result=QCMatchStorage.write(localStorage,state);
     localSaveMessage=result.saved?(result.backup?'Saved on this device':'Saved · previous-copy backup unavailable'):'NOT SAVED · download backup';
     $('connectionStatus').textContent=localSaveMessage;
-    if(!result.saved)showToast(result.error);
+    if(!result.saved)showToast(result.error);return result.saved;
   }
   function persist() {
     if (!state||isSpectator()) return;
@@ -693,7 +700,7 @@
   });
   $('redoButton').addEventListener('click',redo);
   $('undoButton').addEventListener('click', undo); $('endInningsButton').addEventListener('click', () => { if (confirm('End this innings?')) endInnings(); });
-  $('newMatchButton').addEventListener('click',()=>{if(!canEdit())return;if(confirm('Start a new match? The current match stays saved until you start the new one. Download a backup to keep it permanently.')){clearTimeout(cloudSyncTimer);cloudMatchId=null;cloudIsPublic=false;state=null;$('matchPanel').hidden=true;$('setupPanel').hidden=false;$('resumeRow').hidden=false;refreshCloudControls();}});
+  $('newMatchButton').addEventListener('click',async()=>{if(!canEdit())return;if(confirm('Start a new match? The current match will be kept in device history.')){if(window.QCArchive&&!(await window.QCArchive.keep(state)))return;clearTimeout(cloudSyncTimer);cloudMatchId=null;cloudIsPublic=false;state=null;$('matchPanel').hidden=true;$('setupPanel').hidden=false;$('resumeRow').hidden=false;refreshCloudControls();}});
   function restoreCloudReference(){cloudMatchId=state?.cloudRef?.id||null;cloudIsPublic=!!state?.cloudRef?.isPublic;refreshCloudControls();}
   $('resumeButton').addEventListener('click',()=>{if(!canEdit())return;const saved=loadSaved();if(!saved)return showToast('No valid saved match found.');state=saved;restoreCloudReference();$('setupPanel').hidden=true;$('matchPanel').hidden=false;render();});
   function exportScorecard(view){
@@ -716,27 +723,31 @@
     try{if(file.size>20000000)throw Error('Backup is too large.');const payload=JSON.parse(await file.text()),candidate=payload.match||payload;
       if(!QCMatchStorage.valid(candidate))throw Error('This is not a supported match backup.');
       if(!confirm('Restore this match as a local copy? It replaces the active match. Download the current match first if you need to keep it.'))return;
-      const copy=JSON.parse(JSON.stringify(candidate));delete copy.cloudRef;clearTimeout(cloudSyncTimer);cloudMatchId=null;cloudIsPublic=false;state=copy;persist();refreshCloudControls();$('setupPanel').hidden=true;$('matchPanel').hidden=false;render();showToast('Backup restored as a local match. Save it to cloud to create a new shared match.');
+      const copy=JSON.parse(JSON.stringify(candidate));delete copy.cloudRef;copy.matchKey=crypto.randomUUID();copy.localRevision=0;clearTimeout(cloudSyncTimer);cloudMatchId=null;cloudIsPublic=false;state=copy;persist();refreshCloudControls();$('setupPanel').hidden=true;$('matchPanel').hidden=false;render();showToast('Backup restored as a local match. Save it to cloud to create a new shared match.');
     }catch(error){showToast(error.message||'Could not restore backup.');}
   });
   window.addEventListener('storage',event=>{if(event.key===STORAGE_KEY&&state&&!isSpectator()){storageConflict=true;localSaveMessage='Changed in another tab · refresh before scoring';$('connectionStatus').textContent=localSaveMessage;clearTimeout(cloudSyncTimer);}});
   $('editMatchButton').addEventListener('click', () => { $('detailsText').textContent = `${state.teams[0]} vs ${state.teams[1]} · ${state.oversLimit} overs per innings · ${state.playersLimit} players per side.`; $('detailsDialog').showModal(); });
   $('closeDetails').addEventListener('click', () => $('detailsDialog').close());
-  window.addEventListener('online', () => { if(!isSpectator())scheduleCloudSync(); });
+  window.addEventListener('online', () => { if(!supabaseClient)connectCloud();else if(isSpectator())refreshSpectatorMatch(spectatorMatchId);else scheduleCloudSync(); });
+  setInterval(()=>{if(!navigator.onLine||isSpectator()||!state||handedOver)return;if(QCSyncQueue.pending(localStorage,state)||(cloudMatchId&&state.localRevision!==state.cloudRef?.syncedLocalRevision))scheduleCloudSync();},15000);
+  document.addEventListener?.('visibilitychange',()=>{if(document.visibilityState==='visible'&&navigator.onLine){if(isSpectator())refreshSpectatorMatch(spectatorMatchId);else if(state&&state.localRevision!==state.cloudRef?.syncedLocalRevision)scheduleCloudSync();}});
   window.addEventListener('offline', () => { cloudStatus('Offline · cloud sync pending'); });
 
   // Cloud beta controls. These are optional; local scoring does not depend on them.
   $('connectCloudButton').addEventListener('click', connectCloud);
   $('retryCloudButton').addEventListener('click', () => location.reload());
-  $('signUpButton').addEventListener('click', signUp);
-  $('signInButton').addEventListener('click', signIn);
-  $('signOutButton').addEventListener('click', signOut);
+  async function authAction(fn){for(const id of ['signUpButton','signInButton','signOutButton'])$(id).disabled=true;try{await fn();}catch(e){$('authMessage').textContent=e.message||'Connection failed. Try again.';}finally{for(const id of ['signUpButton','signInButton','signOutButton'])$(id).disabled=false;}}
+  $('signUpButton').addEventListener('click',()=>authAction(signUp));
+  $('signInButton').addEventListener('click',()=>authAction(signIn));
+  $('signOutButton').addEventListener('click',()=>authAction(signOut));
   $('saveCloudButton').addEventListener('click', saveMatchToCloud);
   $('loadCloudMatchButton').addEventListener('click', loadExistingCloudMatch);
   $('publishMatchButton').addEventListener('click', publishMatch);
   $('shareMatchButton').addEventListener('click', copySpectatorLink);
 
   window.QCScorer={
+    async openLocal(match){if(!canEdit()||!QCMatchStorage.valid(match))return;if(!confirm('Open this saved match? Your current match will be kept in device history.'))return;if(window.QCArchive&&!(await window.QCArchive.keep(state)))return;clearTimeout(cloudSyncTimer);state=JSON.parse(JSON.stringify(match));controlHeld=false;cloudConflict=false;handedOver=false;restoreCloudReference();saveLocal();$('setupPanel').hidden=true;$('matchPanel').hidden=false;render();},
     read:()=>state?JSON.parse(JSON.stringify(state)):null,
     editable:()=>!isSpectator(),claim:claimControl,release:releaseControl,
     reload:()=>loadExistingCloudMatch(cloudMatchId),
@@ -780,7 +791,6 @@
     render();
   }
   if(isSpectator()){$('setupPanel').hidden=true;$('cloudMatchArea').hidden=true;$('newMatchButton').hidden=true;$('backupControls').hidden=true;}
-  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' }).then(registration => registration.update()).catch(() => {});
 
 
 })();
