@@ -11,14 +11,16 @@
     const target = $(map[name] || map.home);
     if (target) target.hidden = false;
     window.scrollTo({ top: 0, behavior: 'auto' });
+    window.dispatchEvent(new CustomEvent('qc-section-changed', {detail: {section: name}}));
   }
   window.QCNavigation={open:showSection};
   document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('[data-open-section]').forEach(button => {
-      button.addEventListener('click', () => showSection(button.dataset.openSection));
-    });
-    document.querySelectorAll('[data-go-home]').forEach(button => {
-      button.addEventListener('click', () => showSection('home'));
+    // Delegation also covers navigation controls added after startup.
+    document.addEventListener('click', event => {
+      const control = event.target.closest?.('[data-open-section], [data-go-home]');
+      if (!control || event.defaultPrevented || event.button > 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      showSection(control.hasAttribute('data-go-home') ? 'home' : control.dataset.openSection);
     });
     document.querySelectorAll('[data-demo-action]').forEach(button => {
       button.addEventListener('click', () => {
